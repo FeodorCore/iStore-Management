@@ -1,16 +1,15 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using Microsoft.Data.Sqlite;
 
 namespace Apple
 {
     public partial class Form1 : Form
     {
-        private string connectionString = "Server=localhost;Database=iStoreDB;Trusted_Connection=True;TrustServerCertificate=True;";
         private TabControl tabControl;
         private DataGridView dgvProducts, dgvSuppliers, dgvPurchases, dgvSales, dgvCategories, dgvReports;
 
@@ -18,12 +17,15 @@ namespace Apple
         private readonly Color PrimaryColor = Color.FromArgb(0, 120, 215);
         private readonly Color DangerColor = Color.FromArgb(220, 53, 69);
         private readonly Color SecondaryColor = Color.FromArgb(108, 117, 125);
-        private readonly Color SuccessColor = Color.FromArgb(40, 167, 69); // Зеленый для экспорта/печати
+        private readonly Color SuccessColor = Color.FromArgb(40, 167, 69);
         private readonly Color BgColor = Color.White;
         private readonly Color HeaderBgColor = Color.FromArgb(245, 247, 250);
 
         public Form1()
         {
+            // Инициализируем БД при первом запуске
+            iStoreDB.Initialize();
+
             InitializeComponent();
             InitializeUI();
         }
@@ -43,34 +45,56 @@ namespace Apple
                 Padding = new Point(10, 6)
             };
 
-            TabPage tabProducts = new TabPage("📱 Товары");
-            InitializeProductsTab(tabProducts);
-            tabControl.TabPages.Add(tabProducts);
-
-            TabPage tabCategories = new TabPage("📂 Категории");
-            InitializeCategoriesTab(tabCategories);
-            tabControl.TabPages.Add(tabCategories);
-
-            TabPage tabSuppliers = new TabPage("🚚 Поставщики");
-            InitializeSuppliersTab(tabSuppliers);
-            tabControl.TabPages.Add(tabSuppliers);
-
-            TabPage tabPurchases = new TabPage("📥 Закупки");
-            InitializePurchasesTab(tabPurchases);
-            tabControl.TabPages.Add(tabPurchases);
-
-            TabPage tabSales = new TabPage("📤 Продажи");
-            InitializeSalesTab(tabSales);
-            tabControl.TabPages.Add(tabSales);
-
-            TabPage tabReports = new TabPage("📊 Отчеты");
-            InitializeReportsTab(tabReports);
-            tabControl.TabPages.Add(tabReports);
+            var tabProducts = new TabPage("📱 Товары"); InitializeProductsTab(tabProducts); tabControl.TabPages.Add(tabProducts);
+            var tabCategories = new TabPage("📂 Категории"); InitializeCategoriesTab(tabCategories); tabControl.TabPages.Add(tabCategories);
+            var tabSuppliers = new TabPage("🚚 Поставщики"); InitializeSuppliersTab(tabSuppliers); tabControl.TabPages.Add(tabSuppliers);
+            var tabPurchases = new TabPage("📥 Закупки"); InitializePurchasesTab(tabPurchases); tabControl.TabPages.Add(tabPurchases);
+            var tabSales = new TabPage("📤 Продажи"); InitializeSalesTab(tabSales); tabControl.TabPages.Add(tabSales);
+            var tabReports = new TabPage("📊 Отчеты"); InitializeReportsTab(tabReports); tabControl.TabPages.Add(tabReports);
 
             this.Controls.Add(tabControl);
         }
 
         #region Вспомогательные методы UI
+
+        // Универсальный метод загрузки DataTable
+        private DataTable ExecuteQuery(string sql, params (string name, object value)[] parameters)
+        {
+            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            foreach (var (name, value) in parameters)
+                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+
+            var dt = new DataTable();
+            using var reader = cmd.ExecuteReader();
+            dt.Load(reader);
+            return dt;
+        }
+
+        private int ExecuteNonQuery(string sql, params (string name, object value)[] parameters)
+        {
+            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            foreach (var (name, value) in parameters)
+                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+            return cmd.ExecuteNonQuery();
+        }
+
+        private object ExecuteScalar(string sql, params (string name, object value)[] parameters)
+        {
+            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            foreach (var (name, value) in parameters)
+                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+            return cmd.ExecuteScalar();
+        }
+
         private Button CreateButton(string text, Color backColor, int width)
         {
             var btn = new Button
@@ -248,24 +272,19 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = @"SELECT c.CategoryID, c.CategoryName, c.Description,
-                                    COUNT(p.ProductID) as ProductsCount
-                                    FROM Categories c
-                                    LEFT JOIN Products p ON c.CategoryID = p.CategoryID
-                                    GROUP BY c.CategoryID, c.CategoryName, c.Description
-                                    ORDER BY c.CategoryName";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvCategories.DataSource = dt;
+                string query = @"SELECT c.CategoryID, c.CategoryName, c.Description,
+                                        COUNT(p.ProductID) AS ProductsCount
+                                 FROM Categories c
+                                 LEFT JOIN Products p ON c.CategoryID = p.CategoryID
+                                 GROUP BY c.CategoryID, c.CategoryName, c.Description
+                                 ORDER BY c.CategoryName";
+                var dt = ExecuteQuery(query);
+                dgvCategories.DataSource = dt;
 
-                    if (dgvCategories.Columns["CategoryID"] != null) dgvCategories.Columns["CategoryID"].HeaderText = "ID";
-                    if (dgvCategories.Columns["CategoryName"] != null) dgvCategories.Columns["CategoryName"].HeaderText = "Название категории";
-                    if (dgvCategories.Columns["Description"] != null) dgvCategories.Columns["Description"].HeaderText = "Описание";
-                    if (dgvCategories.Columns["ProductsCount"] != null) dgvCategories.Columns["ProductsCount"].HeaderText = "Кол-во товаров";
-                }
+                if (dgvCategories.Columns["CategoryID"] != null) dgvCategories.Columns["CategoryID"].HeaderText = "ID";
+                if (dgvCategories.Columns["CategoryName"] != null) dgvCategories.Columns["CategoryName"].HeaderText = "Название категории";
+                if (dgvCategories.Columns["Description"] != null) dgvCategories.Columns["Description"].HeaderText = "Описание";
+                if (dgvCategories.Columns["ProductsCount"] != null) dgvCategories.Columns["ProductsCount"].HeaderText = "Кол-во товаров";
             }
             catch (Exception ex)
             {
@@ -297,21 +316,16 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"INSERT INTO Categories (CategoryName, Description) VALUES (@Name, @Desc)";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim());
+                    string sql = "INSERT INTO Categories (CategoryName, Description) VALUES (@Name, @Desc)";
+                    ExecuteNonQuery(sql,
+                        ("@Name", txtName.Text.Trim()),
+                        ("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()));
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Категория успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadCategoriesData();
-                        form.Close();
-                    }
+                    MessageBox.Show("Категория успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadCategoriesData();
+                    form.Close();
                 }
-                catch (SqlException sqlEx) when (sqlEx.Number == 2627 || sqlEx.Number == 2601)
+                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
                 {
                     MessageBox.Show("Категория с таким названием уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
@@ -362,22 +376,17 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"UPDATE Categories SET CategoryName = @Name, Description = @Desc WHERE CategoryID = @ID";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@ID", categoryId);
-                        cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim());
+                    string sql = "UPDATE Categories SET CategoryName = @Name, Description = @Desc WHERE CategoryID = @ID";
+                    ExecuteNonQuery(sql,
+                        ("@ID", categoryId),
+                        ("@Name", txtName.Text.Trim()),
+                        ("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()));
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Категория успешно обновлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadCategoriesData();
-                        form.Close();
-                    }
+                    MessageBox.Show("Категория успешно обновлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadCategoriesData();
+                    form.Close();
                 }
-                catch (SqlException sqlEx) when (sqlEx.Number == 2627 || sqlEx.Number == 2601)
+                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
                 {
                     MessageBox.Show("Категория с таким названием уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
@@ -415,28 +424,18 @@ namespace Apple
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                int productsCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Products WHERE CategoryID = @ID", ("@ID", categoryId)));
+
+                if (productsCount > 0)
                 {
-                    string checkQuery = "SELECT COUNT(*) FROM Products WHERE CategoryID = @ID";
-                    SqlCommand checkCmd = new SqlCommand(checkQuery, conn);
-                    checkCmd.Parameters.AddWithValue("@ID", categoryId);
-                    conn.Open();
-                    int productsCount = (int)checkCmd.ExecuteScalar();
-
-                    if (productsCount > 0)
-                    {
-                        MessageBox.Show($"Нельзя удалить категорию! В ней находится {productsCount} товаров. Сначала переместите или удалите товары.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    string query = "DELETE FROM Categories WHERE CategoryID = @ID";
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@ID", categoryId);
-                    cmd.ExecuteNonQuery();
-
-                    MessageBox.Show("Категория успешно удалена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadCategoriesData();
+                    MessageBox.Show($"Нельзя удалить категорию! В ней находится {productsCount} товаров. Сначала переместите или удалите товары.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
+
+                ExecuteNonQuery("DELETE FROM Categories WHERE CategoryID = @ID", ("@ID", categoryId));
+
+                MessageBox.Show("Категория успешно удалена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadCategoriesData();
             }
             catch (Exception ex)
             {
@@ -472,17 +471,11 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = @"SELECT p.ProductID, p.ModelName, c.CategoryName, p.Description, 
-                                   p.BasePrice, p.StockQuantity 
-                                   FROM Products p 
-                                   LEFT JOIN Categories c ON p.CategoryID = c.CategoryID";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvProducts.DataSource = dt;
-                }
+                string query = @"SELECT p.ProductID, p.ModelName, c.CategoryName, p.Description, 
+                                        p.BasePrice, p.StockQuantity 
+                                 FROM Products p 
+                                 LEFT JOIN Categories c ON p.CategoryID = c.CategoryID";
+                dgvProducts.DataSource = ExecuteQuery(query);
             }
             catch (Exception ex)
             {
@@ -521,23 +514,18 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"INSERT INTO Products (ModelName, CategoryID, Description, BasePrice, StockQuantity) 
-                                       VALUES (@Model, @Category, @Desc, @Price, @Stock)";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@Model", txtModel.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Category", cmbCategory.SelectedValue ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Desc", txtDesc.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Price", decimal.Parse(txtPrice.Text));
-                        cmd.Parameters.AddWithValue("@Stock", int.Parse(txtStock.Text));
+                    string sql = @"INSERT INTO Products (ModelName, CategoryID, Description, BasePrice, StockQuantity) 
+                                   VALUES (@Model, @Category, @Desc, @Price, @Stock)";
+                    ExecuteNonQuery(sql,
+                        ("@Model", txtModel.Text.Trim()),
+                        ("@Category", cmbCategory.SelectedValue == null || cmbCategory.SelectedValue is DBNull ? (object)DBNull.Value : Convert.ToInt32(cmbCategory.SelectedValue)),
+                        ("@Desc", txtDesc.Text.Trim()),
+                        ("@Price", decimal.Parse(txtPrice.Text)),
+                        ("@Stock", int.Parse(txtStock.Text)));
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Товар успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadProducts();
-                        form.Close();
-                    }
+                    MessageBox.Show("Товар успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadProducts();
+                    form.Close();
                 }
                 catch (FormatException)
                 {
@@ -560,22 +548,16 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT CategoryID, CategoryName FROM Categories";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
+                var dt = ExecuteQuery("SELECT CategoryID, CategoryName FROM Categories");
 
-                    var emptyRow = dt.NewRow();
-                    emptyRow["CategoryID"] = DBNull.Value;
-                    emptyRow["CategoryName"] = "-- Не выбрано --";
-                    dt.Rows.InsertAt(emptyRow, 0);
+                var emptyRow = dt.NewRow();
+                emptyRow["CategoryID"] = DBNull.Value;
+                emptyRow["CategoryName"] = "-- Не выбрано --";
+                dt.Rows.InsertAt(emptyRow, 0);
 
-                    cmb.DataSource = dt;
-                    cmb.DisplayMember = "CategoryName";
-                    cmb.ValueMember = "CategoryID";
-                }
+                cmb.DataSource = dt;
+                cmb.DisplayMember = "CategoryName";
+                cmb.ValueMember = "CategoryID";
             }
             catch (Exception ex)
             {
@@ -611,14 +593,8 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT SupplierID, SupplierName, ContactName, Phone, Email, Address FROM Suppliers";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvSuppliers.DataSource = dt;
-                }
+                string query = "SELECT SupplierID, SupplierName, ContactName, Phone, Email, Address FROM Suppliers";
+                dgvSuppliers.DataSource = ExecuteQuery(query);
             }
             catch (Exception ex)
             {
@@ -656,23 +632,18 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"INSERT INTO Suppliers (SupplierName, ContactName, Phone, Email, Address) 
-                                       VALUES (@Name, @Contact, @Phone, @Email, @Address)";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Contact", txtContact.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Phone", txtPhone.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Email", txtEmail.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Address", txtAddress.Text.Trim());
+                    string sql = @"INSERT INTO Suppliers (SupplierName, ContactName, Phone, Email, Address) 
+                                   VALUES (@Name, @Contact, @Phone, @Email, @Address)";
+                    ExecuteNonQuery(sql,
+                        ("@Name", txtName.Text.Trim()),
+                        ("@Contact", txtContact.Text.Trim()),
+                        ("@Phone", txtPhone.Text.Trim()),
+                        ("@Email", txtEmail.Text.Trim()),
+                        ("@Address", txtAddress.Text.Trim()));
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Поставщик успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadSuppliers();
-                        form.Close();
-                    }
+                    MessageBox.Show("Поставщик успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadSuppliers();
+                    form.Close();
                 }
                 catch (Exception ex)
                 {
@@ -715,14 +686,8 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT PurchaseID, ModelName, SupplierName, PurchaseDate, Quantity, UnitCost, TotalCost FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvPurchases.DataSource = dt;
-                }
+                string query = "SELECT PurchaseID, ModelName, SupplierName, PurchaseDate, Quantity, UnitCost, TotalCost FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
+                dgvPurchases.DataSource = ExecuteQuery(query);
             }
             catch (Exception ex)
             {
@@ -734,10 +699,8 @@ namespace Apple
         {
             var form = CreateDialogForm("Новая закупка", 450, 400, out var tlp, out var bottomPanel);
 
-            var cmbProduct = new ComboBox();
-            LoadProductsCombo(cmbProduct);
-            var cmbSupplier = new ComboBox();
-            LoadSuppliersCombo(cmbSupplier);
+            var cmbProduct = new ComboBox(); LoadProductsCombo(cmbProduct);
+            var cmbSupplier = new ComboBox(); LoadSuppliersCombo(cmbSupplier);
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
             var txtQty = new TextBox();
             var txtCost = new TextBox();
@@ -763,24 +726,19 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
-                    {
-                        string query = @"INSERT INTO Purchases (ProductID, SupplierID, PurchaseDate, Quantity, UnitCost) 
-                                       VALUES (@Product, @Supplier, @Date, @Qty, @Cost)";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@Product", cmbProduct.SelectedValue);
-                        cmd.Parameters.AddWithValue("@Supplier", cmbSupplier.SelectedValue);
-                        cmd.Parameters.AddWithValue("@Date", dtpDate.Value);
-                        cmd.Parameters.AddWithValue("@Qty", int.Parse(txtQty.Text));
-                        cmd.Parameters.AddWithValue("@Cost", decimal.Parse(txtCost.Text));
+                    string sql = @"INSERT INTO Purchases (ProductID, SupplierID, PurchaseDate, Quantity, UnitCost) 
+                                   VALUES (@Product, @Supplier, @Date, @Qty, @Cost)";
+                    ExecuteNonQuery(sql,
+                        ("@Product", Convert.ToInt32(cmbProduct.SelectedValue)),
+                        ("@Supplier", Convert.ToInt32(cmbSupplier.SelectedValue)),
+                        ("@Date", dtpDate.Value.ToString("yyyy-MM-dd HH:mm:ss")),
+                        ("@Qty", int.Parse(txtQty.Text)),
+                        ("@Cost", decimal.Parse(txtCost.Text)));
 
-                        conn.Open();
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Закупка успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadPurchases();
-                        LoadProducts(); // Обновляем остатки
-                        form.Close();
-                    }
+                    MessageBox.Show("Закупка успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadPurchases();
+                    LoadProducts();
+                    form.Close();
                 }
                 catch (FormatException)
                 {
@@ -803,16 +761,10 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT ProductID, ModelName FROM Products";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    cmb.DataSource = dt;
-                    cmb.DisplayMember = "ModelName";
-                    cmb.ValueMember = "ProductID";
-                }
+                var dt = ExecuteQuery("SELECT ProductID, ModelName FROM Products");
+                cmb.DataSource = dt;
+                cmb.DisplayMember = "ModelName";
+                cmb.ValueMember = "ProductID";
             }
             catch (Exception ex)
             {
@@ -824,16 +776,10 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT SupplierID, SupplierName FROM Suppliers";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    cmb.DataSource = dt;
-                    cmb.DisplayMember = "SupplierName";
-                    cmb.ValueMember = "SupplierID";
-                }
+                var dt = ExecuteQuery("SELECT SupplierID, SupplierName FROM Suppliers");
+                cmb.DataSource = dt;
+                cmb.DisplayMember = "SupplierName";
+                cmb.ValueMember = "SupplierID";
             }
             catch (Exception ex)
             {
@@ -872,14 +818,8 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = "SELECT SaleID, ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone FROM vw_SalesReport ORDER BY SaleDate DESC";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvSales.DataSource = dt;
-                }
+                string query = "SELECT SaleID, ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone FROM vw_SalesReport ORDER BY SaleDate DESC";
+                dgvSales.DataSource = ExecuteQuery(query);
             }
             catch (Exception ex)
             {
@@ -891,8 +831,7 @@ namespace Apple
         {
             var form = CreateDialogForm("Новая продажа", 450, 450, out var tlp, out var bottomPanel);
 
-            var cmbProduct = new ComboBox();
-            LoadProductsCombo(cmbProduct);
+            var cmbProduct = new ComboBox(); LoadProductsCombo(cmbProduct);
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
             var txtQty = new TextBox();
             var txtPrice = new TextBox();
@@ -920,37 +859,30 @@ namespace Apple
 
                 try
                 {
-                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    int stock = Convert.ToInt32(ExecuteScalar("SELECT StockQuantity FROM Products WHERE ProductID = @ProductID",
+                                                              ("@ProductID", Convert.ToInt32(cmbProduct.SelectedValue))));
+                    int requestedQty = int.Parse(txtQty.Text);
+
+                    if (stock < requestedQty)
                     {
-                        string checkQuery = "SELECT StockQuantity FROM Products WHERE ProductID = @ProductID";
-                        SqlCommand checkCmd = new SqlCommand(checkQuery, conn);
-                        checkCmd.Parameters.AddWithValue("@ProductID", cmbProduct.SelectedValue);
-                        conn.Open();
-                        int stock = Convert.ToInt32(checkCmd.ExecuteScalar());
-                        int requestedQty = int.Parse(txtQty.Text);
-
-                        if (stock < requestedQty)
-                        {
-                            MessageBox.Show($"Недостаточно товара на складе! Текущий остаток: {stock} шт.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            return;
-                        }
-
-                        string query = @"INSERT INTO Sales (ProductID, SaleDate, Quantity, UnitPrice, CustomerName, CustomerPhone) 
-                                       VALUES (@Product, @Date, @Qty, @Price, @Customer, @Phone)";
-                        SqlCommand cmd = new SqlCommand(query, conn);
-                        cmd.Parameters.AddWithValue("@Product", cmbProduct.SelectedValue);
-                        cmd.Parameters.AddWithValue("@Date", dtpDate.Value);
-                        cmd.Parameters.AddWithValue("@Qty", requestedQty);
-                        cmd.Parameters.AddWithValue("@Price", decimal.Parse(txtPrice.Text));
-                        cmd.Parameters.AddWithValue("@Customer", txtCustomer.Text.Trim());
-                        cmd.Parameters.AddWithValue("@Phone", txtPhone.Text.Trim());
-
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Продажа успешно оформлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LoadSales();
-                        LoadProducts(); // Обновляем остатки
-                        form.Close();
+                        MessageBox.Show($"Недостаточно товара на складе! Текущий остаток: {stock} шт.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
                     }
+
+                    string sql = @"INSERT INTO Sales (ProductID, SaleDate, Quantity, UnitPrice, CustomerName, CustomerPhone) 
+                                   VALUES (@Product, @Date, @Qty, @Price, @Customer, @Phone)";
+                    ExecuteNonQuery(sql,
+                        ("@Product", Convert.ToInt32(cmbProduct.SelectedValue)),
+                        ("@Date", dtpDate.Value.ToString("yyyy-MM-dd HH:mm:ss")),
+                        ("@Qty", requestedQty),
+                        ("@Price", decimal.Parse(txtPrice.Text)),
+                        ("@Customer", txtCustomer.Text.Trim()),
+                        ("@Phone", txtPhone.Text.Trim()));
+
+                    MessageBox.Show("Продажа успешно оформлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadSales();
+                    LoadProducts();
+                    form.Close();
                 }
                 catch (FormatException)
                 {
@@ -969,7 +901,6 @@ namespace Apple
             form.ShowDialog();
         }
 
-        // НОВЫЙ МЕТОД: Печать чека в .txt
         private void BtnPrintReceipt_Click(object sender, EventArgs e)
         {
             if (dgvSales.SelectedRows.Count == 0)
@@ -982,68 +913,66 @@ namespace Apple
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                string query = @"SELECT ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone 
+                                 FROM vw_SalesReport WHERE SaleID = @SaleID";
+
+                using var conn = new SqliteConnection(iStoreDB.ConnectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = query;
+                cmd.Parameters.AddWithValue("@SaleID", saleId);
+
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read())
                 {
-                    string query = @"SELECT ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone 
-                                     FROM vw_SalesReport WHERE SaleID = @SaleID";
-                    SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@SaleID", saleId);
-                    conn.Open();
+                    MessageBox.Show("Данные о продаже не найдены.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
-                    using (SqlDataReader reader = cmd.ExecuteReader())
+                string modelName = reader["ModelName"].ToString();
+                string saleDateStr = reader["SaleDate"].ToString();
+                DateTime saleDate = DateTime.TryParse(saleDateStr, out var parsedDate) ? parsedDate : DateTime.Now;
+                int qty = Convert.ToInt32(reader["Quantity"]);
+                decimal price = Convert.ToDecimal(reader["UnitPrice"]);
+                decimal total = Convert.ToDecimal(reader["TotalPrice"]);
+                string customer = string.IsNullOrWhiteSpace(reader["CustomerName"].ToString()) ? "Розничный покупатель" : reader["CustomerName"].ToString();
+                string phone = reader["CustomerPhone"].ToString();
+
+                StringBuilder receipt = new StringBuilder();
+                receipt.AppendLine("========================================");
+                receipt.AppendLine("           iStore - Apple Shop          ");
+                receipt.AppendLine("========================================");
+                receipt.AppendLine($"Дата:  {saleDate:dd.MM.yyyy HH:mm}");
+                receipt.AppendLine($"Клиент: {customer}");
+                if (!string.IsNullOrWhiteSpace(phone)) receipt.AppendLine($"Тел.:  {phone}");
+                receipt.AppendLine("----------------------------------------");
+                receipt.AppendLine("Наименование       Кол.   Цена      Сумма");
+                receipt.AppendLine("----------------------------------------");
+
+                string itemLine = $"{modelName,-18} {qty,-4} {price,-8:N2} {total,-8:N2}";
+                if (itemLine.Length > 40) itemLine = itemLine.Substring(0, 40);
+                receipt.AppendLine(itemLine);
+
+                receipt.AppendLine("----------------------------------------");
+                receipt.AppendLine($"ИТОГО К ОПЛАТЕ:       {total,12:N2} ₽");
+                receipt.AppendLine("========================================");
+                receipt.AppendLine("   Спасибо за покупку! Ждем вас снова.  ");
+                receipt.AppendLine("========================================");
+
+                using (SaveFileDialog sfd = new SaveFileDialog())
+                {
+                    sfd.Filter = "Текстовые файлы (*.txt)|*.txt";
+                    sfd.FileName = $"Check_{saleId}_{saleDate:yyyyMMdd_HHmm}.txt";
+                    sfd.Title = "Сохранить чек";
+
+                    if (sfd.ShowDialog() == DialogResult.OK)
                     {
-                        if (!reader.Read())
+                        File.WriteAllText(sfd.FileName, receipt.ToString(), Encoding.UTF8);
+                        MessageBox.Show($"Чек успешно сохранен в:\n{sfd.FileName}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        if (MessageBox.Show("Открыть чек сейчас?", "Вопрос", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                         {
-                            MessageBox.Show("Данные о продаже не найдены.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return;
-                        }
-
-                        string modelName = reader["ModelName"].ToString();
-                        DateTime saleDate = Convert.ToDateTime(reader["SaleDate"]);
-                        int qty = Convert.ToInt32(reader["Quantity"]);
-                        decimal price = Convert.ToDecimal(reader["UnitPrice"]);
-                        decimal total = Convert.ToDecimal(reader["TotalPrice"]);
-                        string customer = string.IsNullOrWhiteSpace(reader["CustomerName"].ToString()) ? "Розничный покупатель" : reader["CustomerName"].ToString();
-                        string phone = reader["CustomerPhone"].ToString();
-
-                        StringBuilder receipt = new StringBuilder();
-                        receipt.AppendLine("========================================");
-                        receipt.AppendLine("           iStore - Apple Shop          ");
-                        receipt.AppendLine("========================================");
-                        receipt.AppendLine($"Дата:  {saleDate:dd.MM.yyyy HH:mm}");
-                        receipt.AppendLine($"Клиент: {customer}");
-                        if (!string.IsNullOrWhiteSpace(phone)) receipt.AppendLine($"Тел.:  {phone}");
-                        receipt.AppendLine("----------------------------------------");
-                        receipt.AppendLine("Наименование       Кол.   Цена      Сумма");
-                        receipt.AppendLine("----------------------------------------");
-
-                        // Форматирование под ширину чека
-                        string itemLine = $"{modelName,-18} {qty,-4} {price,-8:N2} {total,-8:N2}";
-                        if (itemLine.Length > 40) itemLine = itemLine.Substring(0, 40);
-
-                        receipt.AppendLine(itemLine);
-                        receipt.AppendLine("----------------------------------------");
-                        receipt.AppendLine($"ИТОГО К ОПЛАТЕ:       {total,12:N2} ₽");
-                        receipt.AppendLine("========================================");
-                        receipt.AppendLine("   Спасибо за покупку! Ждем вас снова.  ");
-                        receipt.AppendLine("========================================");
-
-                        using (SaveFileDialog sfd = new SaveFileDialog())
-                        {
-                            sfd.Filter = "Текстовые файлы (*.txt)|*.txt";
-                            sfd.FileName = $"Check_{saleId}_{saleDate:yyyyMMdd_HHmm}.txt";
-                            sfd.Title = "Сохранить чек";
-
-                            if (sfd.ShowDialog() == DialogResult.OK)
-                            {
-                                File.WriteAllText(sfd.FileName, receipt.ToString(), Encoding.UTF8);
-                                MessageBox.Show($"Чек успешно сохранен в:\n{sfd.FileName}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                                if (MessageBox.Show("Открыть чек сейчас?", "Вопрос", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                                {
-                                    System.Diagnostics.Process.Start("notepad.exe", sfd.FileName);
-                                }
-                            }
+                            System.Diagnostics.Process.Start("notepad.exe", sfd.FileName);
                         }
                     }
                 }
@@ -1055,7 +984,7 @@ namespace Apple
         }
         #endregion
 
-        #region Отчеты (Табличный вид + Экспорт)
+        #region Отчеты
         private void InitializeReportsTab(TabPage tab)
         {
             var panel = new FlowLayoutPanel
@@ -1072,8 +1001,6 @@ namespace Apple
             var btnSales = CreateButton("💰 Продажи", PrimaryColor, 150);
             var btnPurchase = CreateButton("📥 Закупки", PrimaryColor, 150);
             var btnProfit = CreateButton("📈 Прибыль", PrimaryColor, 150);
-
-            // Кнопка экспорта в Excel
             var btnExport = CreateButton("💾 Экспорт в Excel (.csv)", SuccessColor, 220);
 
             btnStock.Click += BtnStockReport_Click;
@@ -1099,16 +1026,11 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = @"SELECT ModelName AS 'Модель', StockQuantity AS 'Остаток (шт)', BasePrice AS 'Цена (₽)', 
-                                   (StockQuantity * BasePrice) AS 'Общая стоимость (₽)'
-                                   FROM Products ORDER BY StockQuantity DESC";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvReports.DataSource = dt;
-                }
+                string query = @"SELECT ModelName AS 'Модель', StockQuantity AS 'Остаток (шт)', BasePrice AS 'Цена (₽)', 
+                                        (StockQuantity * BasePrice) AS 'Общая стоимость (₽)'
+                                 FROM Products ORDER BY StockQuantity DESC";
+                dgvReports.DataSource = ExecuteQuery(query);
+                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
@@ -1117,16 +1039,11 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = @"SELECT CONVERT(varchar, SaleDate, 104) AS 'Дата', ModelName AS 'Товар', 
-                                   Quantity AS 'Кол-во', UnitPrice AS 'Цена (₽)', TotalPrice AS 'Сумма (₽)', CustomerName AS 'Клиент'
-                                   FROM vw_SalesReport ORDER BY SaleDate DESC";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvReports.DataSource = dt;
-                }
+                string query = @"SELECT strftime('%d.%m.%Y', SaleDate) AS 'Дата', ModelName AS 'Товар', 
+                                        Quantity AS 'Кол-во', UnitPrice AS 'Цена (₽)', TotalPrice AS 'Сумма (₽)', CustomerName AS 'Клиент'
+                                 FROM vw_SalesReport ORDER BY SaleDate DESC";
+                dgvReports.DataSource = ExecuteQuery(query);
+                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
@@ -1135,16 +1052,11 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query = @"SELECT CONVERT(varchar, PurchaseDate, 104) AS 'Дата', ModelName AS 'Товар', SupplierName AS 'Поставщик', 
-                                   Quantity AS 'Кол-во', UnitCost AS 'Цена (₽)', TotalCost AS 'Сумма (₽)'
-                                   FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
-                    SqlDataAdapter adapter = new SqlDataAdapter(query, conn);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-                    dgvReports.DataSource = dt;
-                }
+                string query = @"SELECT strftime('%d.%m.%Y', PurchaseDate) AS 'Дата', ModelName AS 'Товар', SupplierName AS 'Поставщик', 
+                                        Quantity AS 'Кол-во', UnitCost AS 'Цена (₽)', TotalCost AS 'Сумма (₽)'
+                                 FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
+                dgvReports.DataSource = ExecuteQuery(query);
+                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
@@ -1153,39 +1065,32 @@ namespace Apple
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    decimal totalSales = Convert.ToDecimal(new SqlCommand("SELECT ISNULL(SUM(TotalPrice), 0) FROM Sales", conn).ExecuteScalar());
-                    decimal totalPurchases = Convert.ToDecimal(new SqlCommand("SELECT ISNULL(SUM(TotalCost), 0) FROM Purchases", conn).ExecuteScalar());
-                    decimal profit = totalSales - totalPurchases;
+                decimal totalSales = Convert.ToDecimal(ExecuteScalar("SELECT COALESCE(SUM(TotalPrice), 0) FROM Sales"));
+                decimal totalPurchases = Convert.ToDecimal(ExecuteScalar("SELECT COALESCE(SUM(TotalCost),  0) FROM Purchases"));
+                decimal profit = totalSales - totalPurchases;
 
-                    // Создаем таблицу вручную для красивого вывода сводных данных
-                    DataTable dt = new DataTable();
-                    dt.Columns.Add("Показатель", typeof(string));
-                    dt.Columns.Add("Значение (₽)", typeof(string));
+                DataTable dt = new DataTable();
+                dt.Columns.Add("Показатель", typeof(string));
+                dt.Columns.Add("Значение (₽)", typeof(string));
 
-                    dt.Rows.Add("💰 Общая сумма продаж", totalSales.ToString("N2"));
-                    dt.Rows.Add("📥 Общая сумма закупок", totalPurchases.ToString("N2"));
-                    dt.Rows.Add("═══════════════════════", "═══════════════");
-                    dt.Rows.Add("📊 ЧИСТАЯ ПРИБЫЛЬ", profit.ToString("N2"));
+                dt.Rows.Add("💰 Общая сумма продаж", totalSales.ToString("N2"));
+                dt.Rows.Add("📥 Общая сумма закупок", totalPurchases.ToString("N2"));
+                dt.Rows.Add("═══════════════════════", "═══════════════");
+                dt.Rows.Add("📊 ЧИСТАЯ ПРИБЫЛЬ", profit.ToString("N2"));
 
-                    string status = profit > 0 ? "✅ Работаем в плюс!" : (profit < 0 ? "⚠️ Работаем в убыток!" : "⚖️ В ноль");
-                    dt.Rows.Add("📈 Статус", status);
+                string status = profit > 0 ? "✅ Работаем в плюс!" : (profit < 0 ? "⚠️ Работаем в убыток!" : "⚖️ В ноль");
+                dt.Rows.Add("📈 Статус", status);
 
-                    dgvReports.DataSource = dt;
+                dgvReports.DataSource = dt;
 
-                    // Для отчета о прибыли отключаем автоподгонку, чтобы таблица выглядела аккуратно
-                    dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-                    dgvReports.Columns[0].Width = 300;
-                    dgvReports.Columns[1].Width = 200;
-                    dgvReports.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                }
+                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+                dgvReports.Columns[0].Width = 300;
+                dgvReports.Columns[1].Width = 200;
+                dgvReports.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }   
+        }
 
-        // НОВЫЙ МЕТОД: Экспорт отчета в CSV (для Excel)
         private void BtnExportToExcel_Click(object sender, EventArgs e)
         {
             if (dgvReports.DataSource == null || ((DataTable)dgvReports.DataSource).Rows.Count == 0)
@@ -1207,20 +1112,17 @@ namespace Apple
                         var sb = new StringBuilder();
                         DataTable dt = (DataTable)dgvReports.DataSource;
 
-                        // Заголовки столбцов
                         for (int i = 0; i < dt.Columns.Count; i++)
                         {
                             sb.Append(dt.Columns[i].ColumnName);
-                            if (i < dt.Columns.Count - 1) sb.Append(";"); // Разделитель для русской локали Excel
+                            if (i < dt.Columns.Count - 1) sb.Append(";");
                         }
                         sb.AppendLine();
 
-                        // Данные
                         foreach (DataRow row in dt.Rows)
                         {
                             for (int i = 0; i < dt.Columns.Count; i++)
                             {
-                                // Заменяем переносы строк и точки с запятой, чтобы не сломать структуру CSV
                                 string val = row[i].ToString().Replace(";", ",").Replace("\n", " ").Replace("\r", " ");
                                 sb.Append(val);
                                 if (i < dt.Columns.Count - 1) sb.Append(";");
@@ -1228,7 +1130,6 @@ namespace Apple
                             sb.AppendLine();
                         }
 
-                        // КРИТИЧНО: UTF8 с BOM (Byte Order Mark), чтобы Excel корректно открыл кириллицу
                         File.WriteAllText(sfd.FileName, sb.ToString(), new UTF8Encoding(true));
                         MessageBox.Show("Отчет успешно экспортирован!\nВы можете открыть этот файл в Microsoft Excel.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "C2B/57hqp7E=",
+  "dgSpecHash": "X/PmGTtG0rw=",
   "success": true,
   "projectFilePath": "C:\\Users\\PcWIn11\\source\\repos\\Apple\\Apple\\Apple.csproj",
   "expectedPackageFiles": [
@@ -9,6 +9,8 @@
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.data.sqlclient.extensions.abstractions\\1.0.0\\microsoft.data.sqlclient.extensions.abstractions.1.0.0.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.data.sqlclient.internal.logging\\1.0.0\\microsoft.data.sqlclient.internal.logging.1.0.0.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.data.sqlclient.sni.runtime\\6.0.2\\microsoft.data.sqlclient.sni.runtime.6.0.2.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.data.sqlite\\10.0.8\\microsoft.data.sqlite.10.0.8.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.data.sqlite.core\\10.0.8\\microsoft.data.sqlite.core.10.0.8.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.extensions.caching.abstractions\\9.0.13\\microsoft.extensions.caching.abstractions.9.0.13.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.extensions.caching.memory\\9.0.13\\microsoft.extensions.caching.memory.9.0.13.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.0\\microsoft.extensions.dependencyinjection.abstractions.10.0.0.nupkg.sha512",
@@ -26,6 +28,10 @@
     "C:\\Users\\PcWIn11\\.nuget\\packages\\runtime.win-arm64.runtime.native.system.data.sqlclient.sni\\4.4.0\\runtime.win-arm64.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\runtime.win-x64.runtime.native.system.data.sqlclient.sni\\4.4.0\\runtime.win-x64.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\runtime.win-x86.runtime.native.system.data.sqlclient.sni\\4.4.0\\runtime.win-x86.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\sqlitepclraw.bundle_e_sqlite3\\2.1.11\\sqlitepclraw.bundle_e_sqlite3.2.1.11.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\sqlitepclraw.core\\2.1.11\\sqlitepclraw.core.2.1.11.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.11\\sqlitepclraw.lib.e_sqlite3.2.1.11.nupkg.sha512",
+    "C:\\Users\\PcWIn11\\.nuget\\packages\\sqlitepclraw.provider.e_sqlite3\\2.1.11\\sqlitepclraw.provider.e_sqlite3.2.1.11.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\system.data.sqlclient\\4.9.1\\system.data.sqlclient.4.9.1.nupkg.sha512",
     "C:\\Users\\PcWIn11\\.nuget\\packages\\system.identitymodel.tokens.jwt\\8.16.0\\system.identitymodel.tokens.jwt.8.16.0.nupkg.sha512"
   ],
