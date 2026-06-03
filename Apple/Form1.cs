@@ -57,7 +57,6 @@ namespace Apple
 
         #region Вспомогательные методы UI
 
-        // Универсальный метод загрузки DataTable
         private DataTable ExecuteQuery(string sql, params (string name, object value)[] parameters)
         {
             using var conn = new SqliteConnection(iStoreDB.ConnectionString);
@@ -69,7 +68,24 @@ namespace Apple
 
             var dt = new DataTable();
             using var reader = cmd.ExecuteReader();
-            dt.Load(reader);
+
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                Type colType = reader.GetFieldType(i);
+                if (colType == null) colType = typeof(object);
+                dt.Columns.Add(reader.GetName(i), colType);
+            }
+
+            while (reader.Read())
+            {
+                var row = dt.NewRow();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    row[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
+                }
+                dt.Rows.Add(row);
+            }
+
             return dt;
         }
 
@@ -450,12 +466,18 @@ namespace Apple
             var panel = CreateToolbar();
 
             var btnAdd = CreateButton("➕ Добавить товар", PrimaryColor, 160);
+            var btnEdit = CreateButton("✏️ Изменить", SecondaryColor, 140);
+            var btnDelete = CreateButton("🗑️ Удалить", DangerColor, 120);
             var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
 
             btnAdd.Click += BtnAddProduct_Click;
+            btnEdit.Click += BtnEditProduct_Click;
+            btnDelete.Click += BtnDeleteProduct_Click;
             btnRefresh.Click += (s, e) => LoadProducts();
 
             panel.Controls.Add(btnAdd);
+            panel.Controls.Add(btnEdit);
+            panel.Controls.Add(btnDelete);
             panel.Controls.Add(btnRefresh);
 
             dgvProducts = new DataGridView();
@@ -485,7 +507,7 @@ namespace Apple
 
         private void BtnAddProduct_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Добавить товар", 450, 420, out var tlp, out var bottomPanel);
+            var form = CreateDialogForm("Добавить товар", 450, 450, out var tlp, out var bottomPanel);
 
             var txtModel = new TextBox();
             var cmbCategory = new ComboBox();
@@ -527,6 +549,10 @@ namespace Apple
                     LoadProducts();
                     form.Close();
                 }
+                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
+                {
+                    MessageBox.Show("Товар с такой моделью уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
                 catch (FormatException)
                 {
                     MessageBox.Show("Цена и Остаток должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -542,6 +568,145 @@ namespace Apple
             form.Controls.Add(tlp);
             form.Controls.Add(bottomPanel);
             form.ShowDialog();
+        }
+
+        private void BtnEditProduct_Click(object sender, EventArgs e)
+        {
+            if (dgvProducts.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите товар для редактирования!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int productId = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ProductID"].Value);
+            string currentModel = dgvProducts.SelectedRows[0].Cells["ModelName"].Value.ToString();
+            string currentDesc = dgvProducts.SelectedRows[0].Cells["Description"].Value?.ToString() ?? "";
+            decimal currentPrice = Convert.ToDecimal(dgvProducts.SelectedRows[0].Cells["BasePrice"].Value);
+            int currentStock = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["StockQuantity"].Value);
+
+            // Получаем текущий CategoryID напрямую из БД (в гриде его нет)
+            object currentCategoryIdObj = ExecuteScalar(
+                "SELECT CategoryID FROM Products WHERE ProductID = @ID",
+                ("@ID", productId));
+            int currentCategoryId = currentCategoryIdObj == null || currentCategoryIdObj is DBNull
+                ? 0
+                : Convert.ToInt32(currentCategoryIdObj);
+
+            var form = CreateDialogForm("Редактировать товар", 450, 450, out var tlp, out var bottomPanel);
+
+            var txtModel = new TextBox { Text = currentModel };
+            var cmbCategory = new ComboBox();
+            LoadCategories(cmbCategory);
+            if (currentCategoryId > 0)
+            {
+                cmbCategory.SelectedValue = currentCategoryId;
+            }
+            var txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = currentDesc };
+            var txtPrice = new TextBox { Text = currentPrice.ToString("0.##") };
+            var txtStock = new TextBox { Text = currentStock.ToString() };
+
+            AddFormRow(tlp, "Модель:", txtModel, 0);
+            AddFormRow(tlp, "Категория:", cmbCategory, 1);
+            AddFormRow(tlp, "Описание:", txtDesc, 2);
+            AddFormRow(tlp, "Цена:", txtPrice, 3);
+            AddFormRow(tlp, "Остаток:", txtStock, 4);
+
+            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
+            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+
+            btnCancel.Click += (s, ev) => form.Close();
+            btnSave.Click += (s, ev) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtModel.Text) || string.IsNullOrWhiteSpace(txtPrice.Text))
+                {
+                    MessageBox.Show("Заполните обязательные поля (Модель и Цена)!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    string sql = @"UPDATE Products 
+                                   SET ModelName = @Model, 
+                                       CategoryID = @Category, 
+                                       Description = @Desc, 
+                                       BasePrice = @Price, 
+                                       StockQuantity = @Stock 
+                                   WHERE ProductID = @ID";
+                    ExecuteNonQuery(sql,
+                        ("@ID", productId),
+                        ("@Model", txtModel.Text.Trim()),
+                        ("@Category", cmbCategory.SelectedValue == null || cmbCategory.SelectedValue is DBNull ? (object)DBNull.Value : Convert.ToInt32(cmbCategory.SelectedValue)),
+                        ("@Desc", txtDesc.Text.Trim()),
+                        ("@Price", decimal.Parse(txtPrice.Text)),
+                        ("@Stock", int.Parse(txtStock.Text)));
+
+                    MessageBox.Show("Товар успешно обновлён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadProducts();
+                    form.Close();
+                }
+                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
+                {
+                    MessageBox.Show("Товар с такой моделью уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                catch (FormatException)
+                {
+                    MessageBox.Show("Цена и Остаток должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            bottomPanel.Controls.Add(btnCancel);
+            bottomPanel.Controls.Add(btnSave);
+            form.Controls.Add(tlp);
+            form.Controls.Add(bottomPanel);
+            form.ShowDialog();
+        }
+
+        private void BtnDeleteProduct_Click(object sender, EventArgs e)
+        {
+            if (dgvProducts.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите товар для удаления!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int productId = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ProductID"].Value);
+            string modelName = dgvProducts.SelectedRows[0].Cells["ModelName"].Value.ToString();
+
+            DialogResult result = MessageBox.Show(
+                $"Вы уверены, что хотите удалить товар '{modelName}'?\n\n" +
+                "Внимание: если с товаром связаны закупки или продажи, удаление может быть заблокировано!",
+                "Подтверждение удаления",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result != DialogResult.Yes) return;
+
+            try
+            {
+                int purchasesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE ProductID = @ID", ("@ID", productId)));
+                int salesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Sales WHERE ProductID = @ID", ("@ID", productId)));
+
+                if (purchasesCount > 0 || salesCount > 0)
+                {
+                    MessageBox.Show(
+                        $"Нельзя удалить товар!\nС ним связано: {purchasesCount} закупок и {salesCount} продаж.\n" +
+                        "Сначала удалите связанные записи.",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ExecuteNonQuery("DELETE FROM Products WHERE ProductID = @ID", ("@ID", productId));
+                MessageBox.Show("Товар успешно удалён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadProducts();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void LoadCategories(ComboBox cmb)
@@ -572,12 +737,18 @@ namespace Apple
             var panel = CreateToolbar();
 
             var btnAdd = CreateButton("➕ Добавить поставщика", PrimaryColor, 180);
+            var btnEdit = CreateButton("✏️ Изменить", SecondaryColor, 140);
+            var btnDelete = CreateButton("🗑️ Удалить", DangerColor, 120);
             var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
 
             btnAdd.Click += BtnAddSupplier_Click;
+            btnEdit.Click += BtnEditSupplier_Click;
+            btnDelete.Click += BtnDeleteSupplier_Click;
             btnRefresh.Click += (s, e) => LoadSuppliers();
 
             panel.Controls.Add(btnAdd);
+            panel.Controls.Add(btnEdit);
+            panel.Controls.Add(btnDelete);
             panel.Controls.Add(btnRefresh);
 
             dgvSuppliers = new DataGridView();
@@ -656,6 +827,124 @@ namespace Apple
             form.Controls.Add(tlp);
             form.Controls.Add(bottomPanel);
             form.ShowDialog();
+        }
+
+        private void BtnEditSupplier_Click(object sender, EventArgs e)
+        {
+            if (dgvSuppliers.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите поставщика для редактирования!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int supplierId = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["SupplierID"].Value);
+            string currentName = dgvSuppliers.SelectedRows[0].Cells["SupplierName"].Value?.ToString() ?? "";
+            string currentContact = dgvSuppliers.SelectedRows[0].Cells["ContactName"].Value?.ToString() ?? "";
+            string currentPhone = dgvSuppliers.SelectedRows[0].Cells["Phone"].Value?.ToString() ?? "";
+            string currentEmail = dgvSuppliers.SelectedRows[0].Cells["Email"].Value?.ToString() ?? "";
+            string currentAddress = dgvSuppliers.SelectedRows[0].Cells["Address"].Value?.ToString() ?? "";
+
+            var form = CreateDialogForm("Редактировать поставщика", 500, 450, out var tlp, out var bottomPanel);
+
+            var txtName = new TextBox { Text = currentName };
+            var txtContact = new TextBox { Text = currentContact };
+            var txtPhone = new TextBox { Text = currentPhone };
+            var txtEmail = new TextBox { Text = currentEmail };
+            var txtAddress = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = currentAddress };
+
+            AddFormRow(tlp, "Название:", txtName, 0);
+            AddFormRow(tlp, "Контакт:", txtContact, 1);
+            AddFormRow(tlp, "Телефон:", txtPhone, 2);
+            AddFormRow(tlp, "Email:", txtEmail, 3);
+            AddFormRow(tlp, "Адрес:", txtAddress, 4);
+
+            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
+            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+
+            btnCancel.Click += (s, ev) => form.Close();
+            btnSave.Click += (s, ev) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtName.Text))
+                {
+                    MessageBox.Show("Заполните название поставщика!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    string sql = @"UPDATE Suppliers 
+                                   SET SupplierName = @Name, 
+                                       ContactName = @Contact, 
+                                       Phone = @Phone, 
+                                       Email = @Email, 
+                                       Address = @Address 
+                                   WHERE SupplierID = @ID";
+                    ExecuteNonQuery(sql,
+                        ("@ID", supplierId),
+                        ("@Name", txtName.Text.Trim()),
+                        ("@Contact", txtContact.Text.Trim()),
+                        ("@Phone", txtPhone.Text.Trim()),
+                        ("@Email", txtEmail.Text.Trim()),
+                        ("@Address", txtAddress.Text.Trim()));
+
+                    MessageBox.Show("Поставщик успешно обновлён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadSuppliers();
+                    form.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            bottomPanel.Controls.Add(btnCancel);
+            bottomPanel.Controls.Add(btnSave);
+            form.Controls.Add(tlp);
+            form.Controls.Add(bottomPanel);
+            form.ShowDialog();
+        }
+
+        private void BtnDeleteSupplier_Click(object sender, EventArgs e)
+        {
+            if (dgvSuppliers.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите поставщика для удаления!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int supplierId = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["SupplierID"].Value);
+            string supplierName = dgvSuppliers.SelectedRows[0].Cells["SupplierName"].Value.ToString();
+
+            DialogResult result = MessageBox.Show(
+                $"Вы уверены, что хотите удалить поставщика '{supplierName}'?\n\n" +
+                "Внимание: если с поставщиком связаны закупки, удаление будет заблокировано!",
+                "Подтверждение удаления",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result != DialogResult.Yes) return;
+
+            try
+            {
+                int purchasesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE SupplierID = @ID", ("@ID", supplierId)));
+
+                if (purchasesCount > 0)
+                {
+                    MessageBox.Show(
+                        $"Нельзя удалить поставщика!\nС ним связано {purchasesCount} закупок.\n" +
+                        "Сначала удалите связанные закупки.",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ExecuteNonQuery("DELETE FROM Suppliers WHERE SupplierID = @ID", ("@ID", supplierId));
+                MessageBox.Show("Поставщик успешно удалён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadSuppliers();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
         #endregion
 
@@ -1093,7 +1382,14 @@ namespace Apple
 
         private void BtnExportToExcel_Click(object sender, EventArgs e)
         {
-            if (dgvReports.DataSource == null || ((DataTable)dgvReports.DataSource).Rows.Count == 0)
+            if (dgvReports.DataSource == null)
+            {
+                MessageBox.Show("Нет данных для экспорта. Сначала сформируйте отчет.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DataTable dt = GetDataTableFromSource(dgvReports.DataSource);
+            if (dt == null || dt.Rows.Count == 0)
             {
                 MessageBox.Show("Нет данных для экспорта. Сначала сформируйте отчет.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -1109,13 +1405,15 @@ namespace Apple
                 {
                     try
                     {
+                        const string separator = ";";
                         var sb = new StringBuilder();
-                        DataTable dt = (DataTable)dgvReports.DataSource;
+
+                        sb.AppendLine($"sep={separator}");
 
                         for (int i = 0; i < dt.Columns.Count; i++)
                         {
-                            sb.Append(dt.Columns[i].ColumnName);
-                            if (i < dt.Columns.Count - 1) sb.Append(";");
+                            sb.Append(EscapeCsvValue(dt.Columns[i].ColumnName, separator));
+                            if (i < dt.Columns.Count - 1) sb.Append(separator);
                         }
                         sb.AppendLine();
 
@@ -1123,15 +1421,25 @@ namespace Apple
                         {
                             for (int i = 0; i < dt.Columns.Count; i++)
                             {
-                                string val = row[i].ToString().Replace(";", ",").Replace("\n", " ").Replace("\r", " ");
-                                sb.Append(val);
-                                if (i < dt.Columns.Count - 1) sb.Append(";");
+                                string val = row[i] == null || row[i] is DBNull
+                                    ? ""
+                                    : row[i].ToString();
+
+                                sb.Append(EscapeCsvValue(val, separator));
+                                if (i < dt.Columns.Count - 1) sb.Append(separator);
                             }
                             sb.AppendLine();
                         }
 
                         File.WriteAllText(sfd.FileName, sb.ToString(), new UTF8Encoding(true));
-                        MessageBox.Show("Отчет успешно экспортирован!\nВы можете открыть этот файл в Microsoft Excel.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        MessageBox.Show(
+                            "Отчет успешно экспортирован!\n\n" +
+                            $"Файл сохранён:\n{sfd.FileName}\n\n" +
+                            "Откройте его двойным кликом — Excel автоматически разобьёт данные по колонкам.",
+                            "Успех",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
@@ -1139,6 +1447,39 @@ namespace Apple
                     }
                 }
             }
+        }
+
+        private DataTable GetDataTableFromSource(object source)
+        {
+            if (source is DataTable dt)
+                return dt;
+            if (source is DataView dv)
+                return dv.Table;
+            if (source is BindingSource bs && bs.DataSource is DataTable bsDt)
+                return bsDt;
+
+            return null;
+        }
+
+        private string EscapeCsvValue(string value, string separator)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "";
+
+            bool needsQuotes = value.Contains(separator) ||
+                               value.Contains("\"") ||
+                               value.Contains("\n") ||
+                               value.Contains("\r") ||
+                               value.StartsWith(" ") ||
+                               value.EndsWith(" ");
+
+            if (needsQuotes)
+            {
+                string escaped = value.Replace("\"", "\"\"");
+                return $"\"{escaped}\"";
+            }
+
+            return value;
         }
         #endregion
     }
