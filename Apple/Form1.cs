@@ -160,6 +160,17 @@ namespace Apple
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  Класс для хранения данных категории в ComboBox
+    // ═══════════════════════════════════════════════════════════════
+    public class CategoryItem
+    {
+        public int? CategoryID { get; set; }
+        public string CategoryName { get; set; }
+
+        public override string ToString() => CategoryName;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  Основная форма
     // ═══════════════════════════════════════════════════════════════
     public partial class Form1 : Form
@@ -349,16 +360,42 @@ namespace Apple
             };
         }
 
-        private void LoadCategoriesCombo(ComboBox cmb)
+        // 🔧 НОВЫЙ МЕТОД: заполнение ComboBox вручную без DataSource
+        private void LoadCategoriesCombo(ComboBox cmb, int? selectedCategoryId = null)
         {
-            var dt = DatabaseManager.ExecuteQuery("SELECT CategoryID, CategoryName FROM Categories");
-            var emptyRow = dt.NewRow();
-            emptyRow["CategoryID"] = DBNull.Value;
-            emptyRow["CategoryName"] = "— Не выбрано —";
-            dt.Rows.InsertAt(emptyRow, 0);
-            cmb.DataSource = dt;
-            cmb.DisplayMember = "CategoryName";
-            cmb.ValueMember = "CategoryID";
+            cmb.Items.Clear();
+
+            // Добавляем "Не выбрано"
+            cmb.Items.Add(new CategoryItem { CategoryID = null, CategoryName = "— Не выбрано —" });
+
+            // Загружаем категории из базы
+            var dt = DatabaseManager.ExecuteQuery("SELECT CategoryID, CategoryName FROM Categories ORDER BY CategoryName");
+
+            int selectedIndex = 0;
+            int currentIndex = 1; // 0 - это "Не выбрано"
+
+            foreach (DataRow row in dt.Rows)
+            {
+                var item = new CategoryItem
+                {
+                    CategoryID = Convert.ToInt32(row["CategoryID"]),
+                    CategoryName = row["CategoryName"].ToString()
+                };
+                cmb.Items.Add(item);
+
+                // Проверяем, совпадает ли с нужным ID
+                if (selectedCategoryId.HasValue && item.CategoryID == selectedCategoryId.Value)
+                {
+                    selectedIndex = currentIndex;
+                }
+                currentIndex++;
+            }
+
+            // Устанавливаем выбранный элемент
+            if (cmb.Items.Count > 0)
+            {
+                cmb.SelectedIndex = selectedIndex;
+            }
         }
 
         private void LoadCombo(ComboBox cmb, string query, string display, string value)
@@ -474,18 +511,23 @@ namespace Apple
                 FROM Products p LEFT JOIN Categories c ON p.CategoryID = c.CategoryID");
         }
 
+        // 🔧 ИСПРАВЛЕННЫЙ МЕТОД: добавление товара
         private void BtnAddProduct_Click(object sender, EventArgs e)
         {
             var form = CreateDialogForm("Добавить товар", 480, 400, out var tlp, out var bottomPanel);
             var txtModel = new ModernTextBox();
-            var cmbCat = new ComboBox(); LoadCategoriesCombo(cmbCat);
+            var cmbCat = new ComboBox();
             var txtDesc = new ModernTextBox { Multiline = true, Height = 70 };
             var txtPrice = new ModernTextBox { Text = "0" };
 
+            // 🔧 ВАЖНО: сначала добавляем контролы в форму, потом загружаем данные!
             AddFormRow(tlp, "Модель", txtModel, 0);
             AddFormRow(tlp, "Категория", cmbCat, 1);
             AddFormRow(tlp, "Описание", txtDesc, 2);
             AddFormRow(tlp, "Цена (₽)", txtPrice, 3);
+
+            // 🔧 Теперь ComboBox уже в форме, можно безопасно загружать
+            LoadCategoriesCombo(cmbCat);
 
             var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
             var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
@@ -496,10 +538,13 @@ namespace Apple
                 if (string.IsNullOrWhiteSpace(txtModel.Text)) { MessageBox.Show("Введите модель!"); return; }
                 try
                 {
+                    var selectedItem = cmbCat.SelectedItem as CategoryItem;
+                    object catValue = selectedItem?.CategoryID ?? (object)DBNull.Value;
+
                     DatabaseManager.ExecuteNonQuery(
                         "INSERT INTO Products (ModelName, CategoryID, Description, BasePrice, StockQuantity) VALUES (@m, @c, @d, @p, 0)",
                         ("@m", txtModel.Text.Trim()),
-                        ("@c", cmbCat.SelectedValue ?? DBNull.Value),
+                        ("@c", catValue),
                         ("@d", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()),
                         ("@p", decimal.Parse(txtPrice.Text)));
                     LoadProducts();
@@ -515,6 +560,7 @@ namespace Apple
             form.ShowDialog();
         }
 
+        // 🔧 ИСПРАВЛЕННЫЙ МЕТОД: редактирование товара
         private void BtnEditProduct_Click(object sender, EventArgs e)
         {
             if (dgvProducts.SelectedRows.Count == 0) return;
@@ -525,17 +571,25 @@ namespace Apple
 
             var form = CreateDialogForm("Изменить товар", 480, 460, out var tlp, out var bottomPanel);
             var txtModel = new ModernTextBox { Text = row["ModelName"].ToString() };
-            var cmbCat = new ComboBox(); LoadCategoriesCombo(cmbCat);
-            cmbCat.SelectedValue = row["CategoryID"] == DBNull.Value ? null : row["CategoryID"];
-            var txtDesc = new ModernTextBox { Multiline = true, Height = 70, Text = row["Description"].ToString() };
+            var cmbCat = new ComboBox();
+            var txtDesc = new ModernTextBox { Multiline = true, Height = 70, Text = row["Description"]?.ToString() };
             var txtPrice = new ModernTextBox { Text = row["BasePrice"].ToString() };
             var txtStock = new ModernTextBox { Text = row["StockQuantity"].ToString() };
 
+            // 🔧 ВАЖНО: сначала добавляем контролы в форму
             AddFormRow(tlp, "Модель", txtModel, 0);
             AddFormRow(tlp, "Категория", cmbCat, 1);
             AddFormRow(tlp, "Описание", txtDesc, 2);
             AddFormRow(tlp, "Цена (₽)", txtPrice, 3);
             AddFormRow(tlp, "Остаток", txtStock, 4);
+
+            // 🔧 Теперь загружаем категории с выбранным значением
+            int? selectedCategoryId = null;
+            if (row["CategoryID"] != DBNull.Value)
+            {
+                selectedCategoryId = Convert.ToInt32(row["CategoryID"]);
+            }
+            LoadCategoriesCombo(cmbCat, selectedCategoryId);
 
             var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
             var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
@@ -545,10 +599,14 @@ namespace Apple
             {
                 try
                 {
+                    var selectedItem = cmbCat.SelectedItem as CategoryItem;
+                    object catValue = selectedItem?.CategoryID ?? (object)DBNull.Value;
+
                     DatabaseManager.ExecuteNonQuery(
                         "UPDATE Products SET ModelName=@m, CategoryID=@c, Description=@d, BasePrice=@p, StockQuantity=@s WHERE ProductID=@id",
-                        ("@id", id), ("@m", txtModel.Text.Trim()),
-                        ("@c", cmbCat.SelectedValue ?? DBNull.Value),
+                        ("@id", id),
+                        ("@m", txtModel.Text.Trim()),
+                        ("@c", catValue),
                         ("@d", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()),
                         ("@p", decimal.Parse(txtPrice.Text)),
                         ("@s", int.Parse(txtStock.Text)));
@@ -715,8 +773,8 @@ namespace Apple
         private void BtnAddPurchase_Click(object sender, EventArgs e)
         {
             var form = CreateDialogForm("Новая закупка", 480, 400, out var tlp, out var bottomPanel);
-            var cmbProduct = new ComboBox(); LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
-            var cmbSupplier = new ComboBox(); LoadCombo(cmbSupplier, "SELECT SupplierID, SupplierName FROM Suppliers", "SupplierName", "SupplierID");
+            var cmbProduct = new ComboBox();
+            var cmbSupplier = new ComboBox();
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
             var txtQty = new ModernTextBox();
             var txtCost = new ModernTextBox();
@@ -726,6 +784,9 @@ namespace Apple
             AddFormRow(tlp, "Дата", dtpDate, 2);
             AddFormRow(tlp, "Количество", txtQty, 3);
             AddFormRow(tlp, "Цена за ед.", txtCost, 4);
+
+            LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
+            LoadCombo(cmbSupplier, "SELECT SupplierID, SupplierName FROM Suppliers", "SupplierName", "SupplierID");
 
             var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
             var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
@@ -773,7 +834,7 @@ namespace Apple
         private void BtnAddSale_Click(object sender, EventArgs e)
         {
             var form = CreateDialogForm("Новая продажа", 480, 460, out var tlp, out var bottomPanel);
-            var cmbProduct = new ComboBox(); LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
+            var cmbProduct = new ComboBox();
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
             var txtQty = new ModernTextBox();
             var txtPrice = new ModernTextBox();
@@ -786,6 +847,8 @@ namespace Apple
             AddFormRow(tlp, "Цена за ед.", txtPrice, 3);
             AddFormRow(tlp, "Клиент", txtCustomer, 4);
             AddFormRow(tlp, "Телефон", txtPhone, 5);
+
+            LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
 
             var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
             var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
