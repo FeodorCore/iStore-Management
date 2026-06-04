@@ -56,7 +56,6 @@ C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\refint\Apple
 C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.pdb
 C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.genruntimeconfig.cache
 C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\ref\Apple.dll
-C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.Form1.resources
 C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.csproj.GenerateResource.cache
 C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\Microsoft.Data.Sqlite.dll
 C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\SQLitePCLRaw.batteries_v2.dll
@@ -85,3 +84,5 @@ C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\runtimes\win
 C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\PcWIn11\source\repos\Apple\Apple\bin\Debug\net10.0-windows\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.sourcelink.json
+C:\Users\PcWIn11\source\repos\Apple\Apple\obj\Debug\net10.0-windows\Apple.FlatButton.resources

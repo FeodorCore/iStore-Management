@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Apple")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+96882c1f10210c7dc7c23a6466138a77190d33f8")]
 [assembly: System.Reflection.AssemblyProductAttribute("Apple")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Apple")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

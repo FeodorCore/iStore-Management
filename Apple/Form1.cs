@@ -1,6 +1,8 @@
 using System;
+using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
@@ -8,127 +10,207 @@ using Microsoft.Data.Sqlite;
 
 namespace Apple
 {
+    // ═══════════════════════════════════════════════════════════════
+    //  Строгая плоская кнопка с левой акцентной полоской и hover
+    // ═══════════════════════════════════════════════════════════════
+    public class FlatButton : Button
+    {
+        private Color _accentColor;
+        private Color _hoverColor;
+        private Color _hoverAccentColor;
+        private int _accentWidth;
+
+        [Browsable(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [Category("Appearance")]
+        [Description("Цвет левой акцентной полоски")]
+        public Color AccentColor
+        {
+            get { return _accentColor; }
+            set { _accentColor = value; Invalidate(); }
+        }
+
+        [Browsable(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [Category("Appearance")]
+        [Description("Цвет фона при наведении")]
+        public Color HoverColor
+        {
+            get { return _hoverColor; }
+            set { _hoverColor = value; Invalidate(); }
+        }
+
+        [Browsable(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [Category("Appearance")]
+        [Description("Цвет акцентной полоски при наведении")]
+        public Color HoverAccentColor
+        {
+            get { return _hoverAccentColor; }
+            set { _hoverAccentColor = value; Invalidate(); }
+        }
+
+        [Browsable(true)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        [Category("Appearance")]
+        [Description("Ширина левой акцентной полоски в пикселях")]
+        public int AccentWidth
+        {
+            get { return _accentWidth; }
+            set { _accentWidth = value; Invalidate(); }
+        }
+
+        private bool _isHovered;
+        private bool _isPressed;
+
+        public FlatButton()
+        {
+            _accentColor = Color.FromArgb(99, 102, 241);
+            _hoverColor = Color.FromArgb(241, 245, 249);
+            _hoverAccentColor = Color.Empty;
+            _accentWidth = 3;
+
+            SetStyle(ControlStyles.SupportsTransparentBackColor |
+                     ControlStyles.UserPaint |
+                     ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.OptimizedDoubleBuffer, true);
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            FlatAppearance.MouseOverBackColor = Color.Transparent;
+            FlatAppearance.MouseDownBackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+            Font = new Font("Segoe UI Semibold", 9.5F);
+            ForeColor = Color.FromArgb(30, 41, 59);
+            TextAlign = ContentAlignment.MiddleCenter;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            var rect = new Rectangle(0, 0, Width, Height);
+
+            Color bg = BackColor;
+            if (_isPressed)
+                bg = ControlPaint.Dark(_hoverColor, 0.05f);
+            else if (_isHovered)
+                bg = _hoverColor;
+
+            using (var bgBrush = new SolidBrush(bg))
+                g.FillRectangle(bgBrush, rect);
+
+            Color accent = _accentColor;
+            if (_isHovered && _hoverAccentColor != Color.Empty)
+                accent = _hoverAccentColor;
+
+            using (var accentBrush = new SolidBrush(accent))
+                g.FillRectangle(accentBrush, 0, 0, _accentWidth, Height);
+
+            if (_isHovered)
+            {
+                using (var borderPen = new Pen(Color.FromArgb(203, 213, 225), 1))
+                {
+                    g.DrawLine(borderPen, _accentWidth, Height - 1, Width - 1, Height - 1);
+                }
+            }
+
+            using (var textBrush = new SolidBrush(ForeColor))
+            {
+                using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                {
+                    var textRect = new RectangleF(_accentWidth, 0, Width - _accentWidth, Height);
+                    g.DrawString(Text, Font, textBrush, textRect, sf);
+                }
+            }
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _isHovered = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _isHovered = false; _isPressed = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { _isPressed = true; Invalidate(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { _isPressed = false; Invalidate(); base.OnMouseUp(e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Современный TextBox
+    // ═══════════════════════════════════════════════════════════════
+    public class ModernTextBox : TextBox
+    {
+        public ModernTextBox()
+        {
+            BorderStyle = BorderStyle.FixedSingle;
+            BackColor = Color.FromArgb(248, 250, 252);
+            Font = new Font("Segoe UI", 10.5F);
+            Height = 38;
+            Padding = new Padding(8, 0, 8, 0);
+        }
+
+        protected override void OnGotFocus(EventArgs e)
+        {
+            base.OnGotFocus(e);
+            BackColor = Color.White;
+        }
+
+        protected override void OnLostFocus(EventArgs e)
+        {
+            base.OnLostFocus(e);
+            BackColor = Color.FromArgb(248, 250, 252);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  Основная форма
+    // ═══════════════════════════════════════════════════════════════
     public partial class Form1 : Form
     {
-        private TabControl tabControl;
-        private DataGridView dgvProducts, dgvSuppliers, dgvPurchases, dgvSales, dgvCategories, dgvReports;
-
-        // Цветовая палитра
-        private readonly Color PrimaryColor = Color.FromArgb(0, 120, 215);
-        private readonly Color DangerColor = Color.FromArgb(220, 53, 69);
-        private readonly Color SecondaryColor = Color.FromArgb(108, 117, 125);
-        private readonly Color SuccessColor = Color.FromArgb(40, 167, 69);
-        private readonly Color BgColor = Color.White;
-        private readonly Color HeaderBgColor = Color.FromArgb(245, 247, 250);
+        private readonly Color DarkGraphite = Color.FromArgb(30, 41, 59);
+        private readonly Color Slate700 = Color.FromArgb(51, 65, 85);
+        private readonly Color Slate500 = Color.FromArgb(100, 116, 139);
+        private readonly Color Slate200 = Color.FromArgb(226, 232, 240);
+        private readonly Color Slate50 = Color.FromArgb(248, 250, 252);
+        private readonly Color Indigo600 = Color.FromArgb(79, 70, 229);
+        private readonly Color Red600 = Color.FromArgb(220, 38, 38);
+        private readonly Color Red50 = Color.FromArgb(254, 242, 242);
+        private readonly Color Green600 = Color.FromArgb(5, 150, 105);
+        private readonly Color Green50 = Color.FromArgb(240, 253, 250);
+        private readonly Color TextPrimary = Color.FromArgb(15, 23, 42);
 
         public Form1()
         {
-            // Инициализируем БД при первом запуске
-            iStoreDB.Initialize();
-
             InitializeComponent();
-            InitializeUI();
+            ApplyGlobalTheme();
         }
 
-        private void InitializeUI()
+        private void ApplyGlobalTheme()
         {
-            this.Text = "iStore - Управление магазином Apple";
-            this.Size = new Size(1250, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = BgColor;
-            this.Font = new Font("Segoe UI", 10F);
-
-            tabControl = new TabControl
-            {
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Padding = new Point(10, 6)
-            };
-
-            var tabProducts = new TabPage("📱 Товары"); InitializeProductsTab(tabProducts); tabControl.TabPages.Add(tabProducts);
-            var tabCategories = new TabPage("📂 Категории"); InitializeCategoriesTab(tabCategories); tabControl.TabPages.Add(tabCategories);
-            var tabSuppliers = new TabPage("🚚 Поставщики"); InitializeSuppliersTab(tabSuppliers); tabControl.TabPages.Add(tabSuppliers);
-            var tabPurchases = new TabPage("📥 Закупки"); InitializePurchasesTab(tabPurchases); tabControl.TabPages.Add(tabPurchases);
-            var tabSales = new TabPage("📤 Продажи"); InitializeSalesTab(tabSales); tabControl.TabPages.Add(tabSales);
-            var tabReports = new TabPage("📊 Отчеты"); InitializeReportsTab(tabReports); tabControl.TabPages.Add(tabReports);
-
-            this.Controls.Add(tabControl);
+            BackColor = Color.White;
+            tabControl.Font = new Font("Segoe UI Semibold", 10F);
+            tabControl.Padding = new Point(16, 10);
         }
 
-        #region Вспомогательные методы UI
-
-        private DataTable ExecuteQuery(string sql, params (string name, object value)[] parameters)
+        private void Form1_Load(object sender, EventArgs e)
         {
-            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-            foreach (var (name, value) in parameters)
-                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+            DatabaseManager.Initialize();
 
-            var dt = new DataTable();
-            using var reader = cmd.ExecuteReader();
-
-            for (int i = 0; i < reader.FieldCount; i++)
+            var allGrids = new[] { dgvProducts, dgvCategories, dgvSuppliers, dgvPurchases, dgvSales, dgvReports };
+            foreach (var dgv in allGrids)
             {
-                Type colType = reader.GetFieldType(i);
-                if (colType == null) colType = typeof(object);
-                dt.Columns.Add(reader.GetName(i), colType);
+                StyleDataGridView(dgv);
+                dgv.DataError += Dgv_DataError;
             }
 
-            while (reader.Read())
-            {
-                var row = dt.NewRow();
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    row[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-                }
-                dt.Rows.Add(row);
-            }
-
-            return dt;
+            LoadCategoriesData();
+            LoadProducts();
+            LoadSuppliers();
+            LoadPurchases();
+            LoadSales();
         }
 
-        private int ExecuteNonQuery(string sql, params (string name, object value)[] parameters)
+        private void Dgv_DataError(object sender, DataGridViewDataErrorEventArgs e)
         {
-            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-            foreach (var (name, value) in parameters)
-                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
-            return cmd.ExecuteNonQuery();
-        }
-
-        private object ExecuteScalar(string sql, params (string name, object value)[] parameters)
-        {
-            using var conn = new SqliteConnection(iStoreDB.ConnectionString);
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-            foreach (var (name, value) in parameters)
-                cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
-            return cmd.ExecuteScalar();
-        }
-
-        private Button CreateButton(string text, Color backColor, int width)
-        {
-            var btn = new Button
-            {
-                Text = text,
-                Width = width,
-                Height = 38,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = backColor,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                Margin = new Padding(0, 0, 12, 0)
-            };
-            btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(backColor);
-            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(backColor);
-            return btn;
+            e.ThrowException = false;
+            e.Cancel = true;
         }
 
         private void StyleDataGridView(DataGridView dgv)
@@ -137,40 +219,36 @@ namespace Apple
             dgv.ReadOnly = true;
             dgv.AllowUserToAddRows = false;
             dgv.AllowUserToDeleteRows = false;
+            dgv.AllowUserToResizeRows = false;
             dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgv.MultiSelect = false;
-            dgv.RowTemplate.Height = 34;
+            dgv.RowTemplate.Height = 44;
             dgv.RowHeadersVisible = false;
-            dgv.BackgroundColor = BgColor;
+            dgv.BackgroundColor = Color.White;
             dgv.BorderStyle = BorderStyle.None;
             dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dgv.GridColor = Color.FromArgb(230, 230, 230);
+            dgv.GridColor = Slate200;
 
-            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
-            dgv.DefaultCellStyle.SelectionBackColor = PrimaryColor;
-            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgv.DefaultCellStyle.Padding = new Padding(8, 0, 8, 0);
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 10F);
+            dgv.DefaultCellStyle.ForeColor = TextPrimary;
+            dgv.DefaultCellStyle.Padding = new Padding(14, 0, 14, 0);
+            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(238, 242, 255);
+            dgv.DefaultCellStyle.SelectionForeColor = Indigo600;
 
-            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dgv.ColumnHeadersDefaultCellStyle.BackColor = HeaderBgColor;
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(50, 50, 50);
-            dgv.ColumnHeadersHeight = 42;
+            dgv.AlternatingRowsDefaultCellStyle.BackColor = Slate50;
+            dgv.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(238, 242, 255);
+            dgv.AlternatingRowsDefaultCellStyle.SelectionForeColor = Indigo600;
+
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Slate50;
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Slate500;
+            dgv.ColumnHeadersDefaultCellStyle.Padding = new Padding(14, 8, 14, 8);
+            dgv.ColumnHeadersDefaultCellStyle.SelectionBackColor = Slate50;
+            dgv.ColumnHeadersDefaultCellStyle.SelectionForeColor = Slate500;
+            dgv.ColumnHeadersHeight = 46;
+            dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
             dgv.EnableHeadersVisualStyles = false;
-
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        }
-
-        private FlowLayoutPanel CreateToolbar()
-        {
-            return new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 65,
-                Padding = new Padding(15, 15, 15, 10),
-                BackColor = BgColor,
-                WrapContents = false,
-                FlowDirection = FlowDirection.LeftToRight
-            };
         }
 
         private Form CreateDialogForm(string title, int width, int height, out TableLayoutPanel tlp, out FlowLayoutPanel bottomPanel)
@@ -183,11 +261,10 @@ namespace Apple
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                BackColor = BgColor,
+                BackColor = Color.White,
                 Font = new Font("Segoe UI", 10F),
-                Padding = new Padding(30)
+                Padding = new Padding(28, 20, 28, 20)
             };
-
             tlp = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -197,158 +274,137 @@ namespace Apple
                     new ColumnStyle(SizeType.Absolute, 130F),
                     new ColumnStyle(SizeType.Percent, 100F)
                 },
-                BackColor = BgColor,
-                Padding = new Padding(0, 0, 0, 20)
+                Padding = new Padding(0, 0, 0, 16)
             };
-
             bottomPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
-                Height = 60,
+                Height = 64,
                 FlowDirection = FlowDirection.RightToLeft,
-                BackColor = BgColor,
-                Padding = new Padding(0, 15, 0, 0)
+                Padding = new Padding(0, 12, 0, 0)
             };
-
             return form;
         }
 
         private void AddFormRow(TableLayoutPanel tlp, string labelText, Control inputControl, int row)
         {
-            if (tlp.RowCount <= row)
-            {
-                tlp.RowCount++;
-                tlp.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            }
+            if (tlp.RowCount <= row) { tlp.RowCount++; tlp.RowStyles.Add(new RowStyle(SizeType.AutoSize)); }
 
             var lbl = new Label
             {
                 Text = labelText,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.FromArgb(80, 80, 80),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular),
-                Margin = new Padding(0, 10, 15, 10),
+                ForeColor = Slate700,
+                Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
+                Margin = new Padding(0, 12, 14, 12),
                 AutoSize = true
             };
 
-            inputControl.Font = new Font("Segoe UI", 10F);
-            if (inputControl is TextBox tb)
+            if (inputControl is ModernTextBox mtb)
             {
+                mtb.Font = new Font("Segoe UI", 10.5F);
+                mtb.Height = 38;
+            }
+            else if (inputControl is TextBox tb)
+            {
+                tb.Font = new Font("Segoe UI", 10.5F);
                 tb.BorderStyle = BorderStyle.FixedSingle;
-                tb.Height = tb.Multiline ? 80 : 36;
+                tb.BackColor = Slate50;
+                tb.Height = tb.Multiline ? 80 : 38;
             }
             else if (inputControl is ComboBox cb)
             {
+                cb.Font = new Font("Segoe UI", 10.5F);
                 cb.DropDownStyle = ComboBoxStyle.DropDownList;
-                cb.Height = 36;
+                cb.FlatStyle = FlatStyle.Flat;
+                cb.BackColor = Slate50;
+                cb.Height = 38;
             }
             else if (inputControl is DateTimePicker dtp)
             {
-                dtp.Height = 36;
+                dtp.Font = new Font("Segoe UI", 10.5F);
+                dtp.CalendarForeColor = TextPrimary;
+                dtp.Height = 38;
             }
 
-            inputControl.Margin = new Padding(0, 10, 0, 10);
-
+            inputControl.Margin = new Padding(0, 6, 0, 6);
             tlp.Controls.Add(lbl, 0, row);
             tlp.Controls.Add(inputControl, 1, row);
         }
-        #endregion
 
-        #region Категории
-        private void InitializeCategoriesTab(TabPage tab)
+        private FlatButton CreateDialogButton(string text, Color accent, Color hoverBg, Color hoverAccent, int width)
         {
-            var panel = CreateToolbar();
-
-            var btnAdd = CreateButton("➕ Добавить", PrimaryColor, 160);
-            var btnEdit = CreateButton("✏️ Изменить", SecondaryColor, 140);
-            var btnDelete = CreateButton("🗑️ Удалить", DangerColor, 120);
-            var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
-
-            btnAdd.Click += BtnAddCategory_Click;
-            btnEdit.Click += BtnEditCategory_Click;
-            btnDelete.Click += BtnDeleteCategory_Click;
-            btnRefresh.Click += (s, e) => LoadCategoriesData();
-
-            panel.Controls.Add(btnAdd);
-            panel.Controls.Add(btnEdit);
-            panel.Controls.Add(btnDelete);
-            panel.Controls.Add(btnRefresh);
-
-            dgvCategories = new DataGridView();
-            StyleDataGridView(dgvCategories);
-
-            tab.Controls.Add(dgvCategories);
-            tab.Controls.Add(panel);
-
-            LoadCategoriesData();
+            return new FlatButton
+            {
+                Text = text,
+                Width = width,
+                Height = 40,
+                BackColor = Color.White,
+                AccentColor = accent,
+                HoverColor = hoverBg,
+                HoverAccentColor = hoverAccent,
+                ForeColor = TextPrimary,
+                Margin = new Padding(0, 0, 10, 0)
+            };
         }
+
+        private void LoadCategoriesCombo(ComboBox cmb)
+        {
+            var dt = DatabaseManager.ExecuteQuery("SELECT CategoryID, CategoryName FROM Categories");
+            var emptyRow = dt.NewRow();
+            emptyRow["CategoryID"] = DBNull.Value;
+            emptyRow["CategoryName"] = "— Не выбрано —";
+            dt.Rows.InsertAt(emptyRow, 0);
+            cmb.DataSource = dt;
+            cmb.DisplayMember = "CategoryName";
+            cmb.ValueMember = "CategoryID";
+        }
+
+        private void LoadCombo(ComboBox cmb, string query, string display, string value)
+        {
+            cmb.DataSource = DatabaseManager.ExecuteQuery(query);
+            cmb.DisplayMember = display;
+            cmb.ValueMember = value;
+        }
+
+        // ──────────────────── Категории ────────────────────
 
         private void LoadCategoriesData()
         {
-            try
-            {
-                string query = @"SELECT c.CategoryID, c.CategoryName, c.Description,
-                                        COUNT(p.ProductID) AS ProductsCount
-                                 FROM Categories c
-                                 LEFT JOIN Products p ON c.CategoryID = p.CategoryID
-                                 GROUP BY c.CategoryID, c.CategoryName, c.Description
-                                 ORDER BY c.CategoryName";
-                var dt = ExecuteQuery(query);
-                dgvCategories.DataSource = dt;
-
-                if (dgvCategories.Columns["CategoryID"] != null) dgvCategories.Columns["CategoryID"].HeaderText = "ID";
-                if (dgvCategories.Columns["CategoryName"] != null) dgvCategories.Columns["CategoryName"].HeaderText = "Название категории";
-                if (dgvCategories.Columns["Description"] != null) dgvCategories.Columns["Description"].HeaderText = "Описание";
-                if (dgvCategories.Columns["ProductsCount"] != null) dgvCategories.Columns["ProductsCount"].HeaderText = "Кол-во товаров";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки категорий: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            dgvCategories.DataSource = DatabaseManager.ExecuteQuery(@"
+                SELECT c.CategoryID AS 'ID', c.CategoryName AS 'Название', c.Description AS 'Описание',
+                       COUNT(p.ProductID) AS 'Товаров'
+                FROM Categories c LEFT JOIN Products p ON c.CategoryID = p.CategoryID
+                GROUP BY c.CategoryID, c.CategoryName, c.Description ORDER BY c.CategoryName");
         }
 
         private void BtnAddCategory_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Добавить категорию", 450, 300, out var tlp, out var bottomPanel);
+            var form = CreateDialogForm("Добавить категорию", 480, 300, out var tlp, out var bottomPanel);
+            var txtName = new ModernTextBox();
+            var txtDesc = new ModernTextBox { Multiline = true, Height = 80 };
 
-            var txtName = new TextBox();
-            var txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical };
+            AddFormRow(tlp, "Название", txtName, 0);
+            AddFormRow(tlp, "Описание", txtDesc, 1);
 
-            AddFormRow(tlp, "Название:", txtName, 0);
-            AddFormRow(tlp, "Описание:", txtDesc, 1);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtName.Text))
-                {
-                    MessageBox.Show("Введите название категории!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (string.IsNullOrWhiteSpace(txtName.Text)) { MessageBox.Show("Введите название!"); return; }
                 try
                 {
-                    string sql = "INSERT INTO Categories (CategoryName, Description) VALUES (@Name, @Desc)";
-                    ExecuteNonQuery(sql,
-                        ("@Name", txtName.Text.Trim()),
-                        ("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()));
-
-                    MessageBox.Show("Категория успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "INSERT INTO Categories (CategoryName, Description) VALUES (@n, @d)",
+                        ("@n", txtName.Text.Trim()),
+                        ("@d", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()));
                     LoadCategoriesData();
                     form.Close();
                 }
-                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
-                {
-                    MessageBox.Show("Категория с таким названием уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -360,56 +416,32 @@ namespace Apple
 
         private void BtnEditCategory_Click(object sender, EventArgs e)
         {
-            if (dgvCategories.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Выберите категорию для редактирования!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (dgvCategories.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvCategories.SelectedRows[0].Cells["ID"].Value);
 
-            int categoryId = Convert.ToInt32(dgvCategories.SelectedRows[0].Cells["CategoryID"].Value);
-            string currentName = dgvCategories.SelectedRows[0].Cells["CategoryName"].Value.ToString();
-            string currentDesc = dgvCategories.SelectedRows[0].Cells["Description"].Value?.ToString() ?? "";
+            var form = CreateDialogForm("Изменить категорию", 480, 300, out var tlp, out var bottomPanel);
+            var txtName = new ModernTextBox { Text = dgvCategories.SelectedRows[0].Cells["Название"].Value.ToString() };
+            var txtDesc = new ModernTextBox { Multiline = true, Height = 80, Text = dgvCategories.SelectedRows[0].Cells["Описание"].Value?.ToString() };
 
-            var form = CreateDialogForm("Редактировать категорию", 450, 300, out var tlp, out var bottomPanel);
+            AddFormRow(tlp, "Название", txtName, 0);
+            AddFormRow(tlp, "Описание", txtDesc, 1);
 
-            var txtName = new TextBox { Text = currentName };
-            var txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = currentDesc };
-
-            AddFormRow(tlp, "Название:", txtName, 0);
-            AddFormRow(tlp, "Описание:", txtDesc, 1);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtName.Text))
-                {
-                    MessageBox.Show("Введите название категории!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
                 try
                 {
-                    string sql = "UPDATE Categories SET CategoryName = @Name, Description = @Desc WHERE CategoryID = @ID";
-                    ExecuteNonQuery(sql,
-                        ("@ID", categoryId),
-                        ("@Name", txtName.Text.Trim()),
-                        ("@Desc", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()));
-
-                    MessageBox.Show("Категория успешно обновлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "UPDATE Categories SET CategoryName=@n, Description=@d WHERE CategoryID=@id",
+                        ("@id", id), ("@n", txtName.Text.Trim()),
+                        ("@d", (object)txtDesc.Text.Trim() ?? DBNull.Value));
                     LoadCategoriesData();
                     form.Close();
                 }
-                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
-                {
-                    MessageBox.Show("Категория с таким названием уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -421,146 +453,59 @@ namespace Apple
 
         private void BtnDeleteCategory_Click(object sender, EventArgs e)
         {
-            if (dgvCategories.SelectedRows.Count == 0)
+            if (dgvCategories.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvCategories.SelectedRows[0].Cells["ID"].Value);
+            if (MessageBox.Show("Удалить категорию?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
-                MessageBox.Show("Выберите категорию для удаления!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int categoryId = Convert.ToInt32(dgvCategories.SelectedRows[0].Cells["CategoryID"].Value);
-            string categoryName = dgvCategories.SelectedRows[0].Cells["CategoryName"].Value.ToString();
-
-            DialogResult result = MessageBox.Show(
-                $"Вы уверены, что хотите удалить категорию '{categoryName}'?",
-                "Подтверждение удаления",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (result != DialogResult.Yes) return;
-
-            try
-            {
-                int productsCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Products WHERE CategoryID = @ID", ("@ID", categoryId)));
-
-                if (productsCount > 0)
-                {
-                    MessageBox.Show($"Нельзя удалить категорию! В ней находится {productsCount} товаров. Сначала переместите или удалите товары.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                ExecuteNonQuery("DELETE FROM Categories WHERE CategoryID = @ID", ("@ID", categoryId));
-
-                MessageBox.Show("Категория успешно удалена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadCategoriesData();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                try { DatabaseManager.ExecuteNonQuery("DELETE FROM Categories WHERE CategoryID=@id", ("@id", id)); LoadCategoriesData(); }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             }
         }
-        #endregion
 
-        #region Товары
-        private void InitializeProductsTab(TabPage tab)
-        {
-            var panel = CreateToolbar();
+        private void BtnRefreshCategories_Click(object sender, EventArgs e) => LoadCategoriesData();
 
-            var btnAdd = CreateButton("➕ Добавить товар", PrimaryColor, 160);
-            var btnEdit = CreateButton("✏️ Изменить", SecondaryColor, 140);
-            var btnDelete = CreateButton("🗑️ Удалить", DangerColor, 120);
-            var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
-
-            btnAdd.Click += BtnAddProduct_Click;
-            btnEdit.Click += BtnEditProduct_Click;
-            btnDelete.Click += BtnDeleteProduct_Click;
-            btnRefresh.Click += (s, e) => LoadProducts();
-
-            panel.Controls.Add(btnAdd);
-            panel.Controls.Add(btnEdit);
-            panel.Controls.Add(btnDelete);
-            panel.Controls.Add(btnRefresh);
-
-            dgvProducts = new DataGridView();
-            StyleDataGridView(dgvProducts);
-
-            tab.Controls.Add(dgvProducts);
-            tab.Controls.Add(panel);
-
-            LoadProducts();
-        }
+        // ──────────────────── Товары ────────────────────
 
         private void LoadProducts()
         {
-            try
-            {
-                string query = @"SELECT p.ProductID, p.ModelName, c.CategoryName, p.Description, 
-                                        p.BasePrice, p.StockQuantity 
-                                 FROM Products p 
-                                 LEFT JOIN Categories c ON p.CategoryID = c.CategoryID";
-                dgvProducts.DataSource = ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки товаров: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            dgvProducts.DataSource = DatabaseManager.ExecuteQuery(@"
+                SELECT p.ProductID AS 'ID', p.ModelName AS 'Модель', c.CategoryName AS 'Категория',
+                       p.Description AS 'Описание', p.BasePrice AS 'Цена', p.StockQuantity AS 'Остаток'
+                FROM Products p LEFT JOIN Categories c ON p.CategoryID = c.CategoryID");
         }
 
         private void BtnAddProduct_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Добавить товар", 450, 450, out var tlp, out var bottomPanel);
+            var form = CreateDialogForm("Добавить товар", 480, 400, out var tlp, out var bottomPanel);
+            var txtModel = new ModernTextBox();
+            var cmbCat = new ComboBox(); LoadCategoriesCombo(cmbCat);
+            var txtDesc = new ModernTextBox { Multiline = true, Height = 70 };
+            var txtPrice = new ModernTextBox { Text = "0" };
 
-            var txtModel = new TextBox();
-            var cmbCategory = new ComboBox();
-            LoadCategories(cmbCategory);
-            var txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical };
-            var txtPrice = new TextBox();
-            var txtStock = new TextBox { Text = "0" };
+            AddFormRow(tlp, "Модель", txtModel, 0);
+            AddFormRow(tlp, "Категория", cmbCat, 1);
+            AddFormRow(tlp, "Описание", txtDesc, 2);
+            AddFormRow(tlp, "Цена (₽)", txtPrice, 3);
 
-            AddFormRow(tlp, "Модель:", txtModel, 0);
-            AddFormRow(tlp, "Категория:", cmbCategory, 1);
-            AddFormRow(tlp, "Описание:", txtDesc, 2);
-            AddFormRow(tlp, "Цена:", txtPrice, 3);
-            AddFormRow(tlp, "Остаток:", txtStock, 4);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtModel.Text) || string.IsNullOrWhiteSpace(txtPrice.Text))
-                {
-                    MessageBox.Show("Заполните обязательные поля (Модель и Цена)!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (string.IsNullOrWhiteSpace(txtModel.Text)) { MessageBox.Show("Введите модель!"); return; }
                 try
                 {
-                    string sql = @"INSERT INTO Products (ModelName, CategoryID, Description, BasePrice, StockQuantity) 
-                                   VALUES (@Model, @Category, @Desc, @Price, @Stock)";
-                    ExecuteNonQuery(sql,
-                        ("@Model", txtModel.Text.Trim()),
-                        ("@Category", cmbCategory.SelectedValue == null || cmbCategory.SelectedValue is DBNull ? (object)DBNull.Value : Convert.ToInt32(cmbCategory.SelectedValue)),
-                        ("@Desc", txtDesc.Text.Trim()),
-                        ("@Price", decimal.Parse(txtPrice.Text)),
-                        ("@Stock", int.Parse(txtStock.Text)));
-
-                    MessageBox.Show("Товар успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "INSERT INTO Products (ModelName, CategoryID, Description, BasePrice, StockQuantity) VALUES (@m, @c, @d, @p, 0)",
+                        ("@m", txtModel.Text.Trim()),
+                        ("@c", cmbCat.SelectedValue ?? DBNull.Value),
+                        ("@d", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()),
+                        ("@p", decimal.Parse(txtPrice.Text)));
                     LoadProducts();
                     form.Close();
                 }
-                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
-                {
-                    MessageBox.Show("Товар с такой моделью уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (FormatException)
-                {
-                    MessageBox.Show("Цена и Остаток должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -572,90 +517,45 @@ namespace Apple
 
         private void BtnEditProduct_Click(object sender, EventArgs e)
         {
-            if (dgvProducts.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Выберите товар для редактирования!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (dgvProducts.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ID"].Value);
+            var dt = DatabaseManager.ExecuteQuery("SELECT * FROM Products WHERE ProductID = @id", ("@id", id));
+            if (dt.Rows.Count == 0) return;
+            var row = dt.Rows[0];
 
-            int productId = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ProductID"].Value);
-            string currentModel = dgvProducts.SelectedRows[0].Cells["ModelName"].Value.ToString();
-            string currentDesc = dgvProducts.SelectedRows[0].Cells["Description"].Value?.ToString() ?? "";
-            decimal currentPrice = Convert.ToDecimal(dgvProducts.SelectedRows[0].Cells["BasePrice"].Value);
-            int currentStock = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["StockQuantity"].Value);
+            var form = CreateDialogForm("Изменить товар", 480, 460, out var tlp, out var bottomPanel);
+            var txtModel = new ModernTextBox { Text = row["ModelName"].ToString() };
+            var cmbCat = new ComboBox(); LoadCategoriesCombo(cmbCat);
+            cmbCat.SelectedValue = row["CategoryID"] == DBNull.Value ? null : row["CategoryID"];
+            var txtDesc = new ModernTextBox { Multiline = true, Height = 70, Text = row["Description"].ToString() };
+            var txtPrice = new ModernTextBox { Text = row["BasePrice"].ToString() };
+            var txtStock = new ModernTextBox { Text = row["StockQuantity"].ToString() };
 
-            // Получаем текущий CategoryID напрямую из БД (в гриде его нет)
-            object currentCategoryIdObj = ExecuteScalar(
-                "SELECT CategoryID FROM Products WHERE ProductID = @ID",
-                ("@ID", productId));
-            int currentCategoryId = currentCategoryIdObj == null || currentCategoryIdObj is DBNull
-                ? 0
-                : Convert.ToInt32(currentCategoryIdObj);
+            AddFormRow(tlp, "Модель", txtModel, 0);
+            AddFormRow(tlp, "Категория", cmbCat, 1);
+            AddFormRow(tlp, "Описание", txtDesc, 2);
+            AddFormRow(tlp, "Цена (₽)", txtPrice, 3);
+            AddFormRow(tlp, "Остаток", txtStock, 4);
 
-            var form = CreateDialogForm("Редактировать товар", 450, 450, out var tlp, out var bottomPanel);
-
-            var txtModel = new TextBox { Text = currentModel };
-            var cmbCategory = new ComboBox();
-            LoadCategories(cmbCategory);
-            if (currentCategoryId > 0)
-            {
-                cmbCategory.SelectedValue = currentCategoryId;
-            }
-            var txtDesc = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = currentDesc };
-            var txtPrice = new TextBox { Text = currentPrice.ToString("0.##") };
-            var txtStock = new TextBox { Text = currentStock.ToString() };
-
-            AddFormRow(tlp, "Модель:", txtModel, 0);
-            AddFormRow(tlp, "Категория:", cmbCategory, 1);
-            AddFormRow(tlp, "Описание:", txtDesc, 2);
-            AddFormRow(tlp, "Цена:", txtPrice, 3);
-            AddFormRow(tlp, "Остаток:", txtStock, 4);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtModel.Text) || string.IsNullOrWhiteSpace(txtPrice.Text))
-                {
-                    MessageBox.Show("Заполните обязательные поля (Модель и Цена)!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
                 try
                 {
-                    string sql = @"UPDATE Products 
-                                   SET ModelName = @Model, 
-                                       CategoryID = @Category, 
-                                       Description = @Desc, 
-                                       BasePrice = @Price, 
-                                       StockQuantity = @Stock 
-                                   WHERE ProductID = @ID";
-                    ExecuteNonQuery(sql,
-                        ("@ID", productId),
-                        ("@Model", txtModel.Text.Trim()),
-                        ("@Category", cmbCategory.SelectedValue == null || cmbCategory.SelectedValue is DBNull ? (object)DBNull.Value : Convert.ToInt32(cmbCategory.SelectedValue)),
-                        ("@Desc", txtDesc.Text.Trim()),
-                        ("@Price", decimal.Parse(txtPrice.Text)),
-                        ("@Stock", int.Parse(txtStock.Text)));
-
-                    MessageBox.Show("Товар успешно обновлён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "UPDATE Products SET ModelName=@m, CategoryID=@c, Description=@d, BasePrice=@p, StockQuantity=@s WHERE ProductID=@id",
+                        ("@id", id), ("@m", txtModel.Text.Trim()),
+                        ("@c", cmbCat.SelectedValue ?? DBNull.Value),
+                        ("@d", string.IsNullOrWhiteSpace(txtDesc.Text) ? DBNull.Value : (object)txtDesc.Text.Trim()),
+                        ("@p", decimal.Parse(txtPrice.Text)),
+                        ("@s", int.Parse(txtStock.Text)));
                     LoadProducts();
                     form.Close();
                 }
-                catch (SqliteException sqlEx) when (sqlEx.SqliteErrorCode == 19 || sqlEx.SqliteErrorCode == 2067)
-                {
-                    MessageBox.Show("Товар с такой моделью уже существует!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (FormatException)
-                {
-                    MessageBox.Show("Цена и Остаток должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -667,159 +567,66 @@ namespace Apple
 
         private void BtnDeleteProduct_Click(object sender, EventArgs e)
         {
-            if (dgvProducts.SelectedRows.Count == 0)
+            if (dgvProducts.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ID"].Value);
+            if (MessageBox.Show("Удалить товар?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
-                MessageBox.Show("Выберите товар для удаления!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int productId = Convert.ToInt32(dgvProducts.SelectedRows[0].Cells["ProductID"].Value);
-            string modelName = dgvProducts.SelectedRows[0].Cells["ModelName"].Value.ToString();
-
-            DialogResult result = MessageBox.Show(
-                $"Вы уверены, что хотите удалить товар '{modelName}'?\n\n" +
-                "Внимание: если с товаром связаны закупки или продажи, удаление может быть заблокировано!",
-                "Подтверждение удаления",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (result != DialogResult.Yes) return;
-
-            try
-            {
-                int purchasesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE ProductID = @ID", ("@ID", productId)));
-                int salesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Sales WHERE ProductID = @ID", ("@ID", productId)));
-
-                if (purchasesCount > 0 || salesCount > 0)
+                try
                 {
-                    MessageBox.Show(
-                        $"Нельзя удалить товар!\nС ним связано: {purchasesCount} закупок и {salesCount} продаж.\n" +
-                        "Сначала удалите связанные записи.",
-                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    int pCount = Convert.ToInt32(DatabaseManager.ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE ProductID=@id", ("@id", id)));
+                    int sCount = Convert.ToInt32(DatabaseManager.ExecuteScalar("SELECT COUNT(*) FROM Sales WHERE ProductID=@id", ("@id", id)));
+                    if (pCount > 0 || sCount > 0) { MessageBox.Show("Нельзя удалить: есть связанные закупки или продажи!"); return; }
+                    DatabaseManager.ExecuteNonQuery("DELETE FROM Products WHERE ProductID=@id", ("@id", id));
+                    LoadProducts();
                 }
-
-                ExecuteNonQuery("DELETE FROM Products WHERE ProductID = @ID", ("@ID", productId));
-                MessageBox.Show("Товар успешно удалён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadProducts();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             }
         }
 
-        private void LoadCategories(ComboBox cmb)
-        {
-            try
-            {
-                var dt = ExecuteQuery("SELECT CategoryID, CategoryName FROM Categories");
+        private void BtnRefreshProducts_Click(object sender, EventArgs e) => LoadProducts();
 
-                var emptyRow = dt.NewRow();
-                emptyRow["CategoryID"] = DBNull.Value;
-                emptyRow["CategoryName"] = "-- Не выбрано --";
-                dt.Rows.InsertAt(emptyRow, 0);
-
-                cmb.DataSource = dt;
-                cmb.DisplayMember = "CategoryName";
-                cmb.ValueMember = "CategoryID";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки категорий: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        #endregion
-
-        #region Поставщики
-        private void InitializeSuppliersTab(TabPage tab)
-        {
-            var panel = CreateToolbar();
-
-            var btnAdd = CreateButton("➕ Добавить поставщика", PrimaryColor, 180);
-            var btnEdit = CreateButton("✏️ Изменить", SecondaryColor, 140);
-            var btnDelete = CreateButton("🗑️ Удалить", DangerColor, 120);
-            var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
-
-            btnAdd.Click += BtnAddSupplier_Click;
-            btnEdit.Click += BtnEditSupplier_Click;
-            btnDelete.Click += BtnDeleteSupplier_Click;
-            btnRefresh.Click += (s, e) => LoadSuppliers();
-
-            panel.Controls.Add(btnAdd);
-            panel.Controls.Add(btnEdit);
-            panel.Controls.Add(btnDelete);
-            panel.Controls.Add(btnRefresh);
-
-            dgvSuppliers = new DataGridView();
-            StyleDataGridView(dgvSuppliers);
-
-            tab.Controls.Add(dgvSuppliers);
-            tab.Controls.Add(panel);
-
-            LoadSuppliers();
-        }
+        // ──────────────────── Поставщики ────────────────────
 
         private void LoadSuppliers()
         {
-            try
-            {
-                string query = "SELECT SupplierID, SupplierName, ContactName, Phone, Email, Address FROM Suppliers";
-                dgvSuppliers.DataSource = ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки поставщиков: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            dgvSuppliers.DataSource = DatabaseManager.ExecuteQuery(@"
+                SELECT SupplierID AS 'ID', SupplierName AS 'Название', ContactName AS 'Контакт',
+                       Phone AS 'Телефон', Email, Address AS 'Адрес' FROM Suppliers");
         }
 
         private void BtnAddSupplier_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Добавить поставщика", 500, 450, out var tlp, out var bottomPanel);
+            var form = CreateDialogForm("Добавить поставщика", 520, 440, out var tlp, out var bottomPanel);
+            var txtName = new ModernTextBox();
+            var txtContact = new ModernTextBox();
+            var txtPhone = new ModernTextBox();
+            var txtEmail = new ModernTextBox();
+            var txtAddress = new ModernTextBox { Multiline = true, Height = 70 };
 
-            var txtName = new TextBox();
-            var txtContact = new TextBox();
-            var txtPhone = new TextBox();
-            var txtEmail = new TextBox();
-            var txtAddress = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical };
+            AddFormRow(tlp, "Название", txtName, 0);
+            AddFormRow(tlp, "Контакт", txtContact, 1);
+            AddFormRow(tlp, "Телефон", txtPhone, 2);
+            AddFormRow(tlp, "Email", txtEmail, 3);
+            AddFormRow(tlp, "Адрес", txtAddress, 4);
 
-            AddFormRow(tlp, "Название:", txtName, 0);
-            AddFormRow(tlp, "Контакт:", txtContact, 1);
-            AddFormRow(tlp, "Телефон:", txtPhone, 2);
-            AddFormRow(tlp, "Email:", txtEmail, 3);
-            AddFormRow(tlp, "Адрес:", txtAddress, 4);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtName.Text))
-                {
-                    MessageBox.Show("Заполните название поставщика!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (string.IsNullOrWhiteSpace(txtName.Text)) { MessageBox.Show("Введите название!"); return; }
                 try
                 {
-                    string sql = @"INSERT INTO Suppliers (SupplierName, ContactName, Phone, Email, Address) 
-                                   VALUES (@Name, @Contact, @Phone, @Email, @Address)";
-                    ExecuteNonQuery(sql,
-                        ("@Name", txtName.Text.Trim()),
-                        ("@Contact", txtContact.Text.Trim()),
-                        ("@Phone", txtPhone.Text.Trim()),
-                        ("@Email", txtEmail.Text.Trim()),
-                        ("@Address", txtAddress.Text.Trim()));
-
-                    MessageBox.Show("Поставщик успешно добавлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "INSERT INTO Suppliers (SupplierName, ContactName, Phone, Email, Address) VALUES (@n, @c, @p, @e, @a)",
+                        ("@n", txtName.Text.Trim()), ("@c", txtContact.Text.Trim()),
+                        ("@p", txtPhone.Text.Trim()), ("@e", txtEmail.Text.Trim()),
+                        ("@a", txtAddress.Text.Trim()));
                     LoadSuppliers();
                     form.Close();
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -831,70 +638,42 @@ namespace Apple
 
         private void BtnEditSupplier_Click(object sender, EventArgs e)
         {
-            if (dgvSuppliers.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Выберите поставщика для редактирования!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (dgvSuppliers.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["ID"].Value);
+            var dt = DatabaseManager.ExecuteQuery("SELECT * FROM Suppliers WHERE SupplierID = @id", ("@id", id));
+            if (dt.Rows.Count == 0) return;
+            var row = dt.Rows[0];
 
-            int supplierId = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["SupplierID"].Value);
-            string currentName = dgvSuppliers.SelectedRows[0].Cells["SupplierName"].Value?.ToString() ?? "";
-            string currentContact = dgvSuppliers.SelectedRows[0].Cells["ContactName"].Value?.ToString() ?? "";
-            string currentPhone = dgvSuppliers.SelectedRows[0].Cells["Phone"].Value?.ToString() ?? "";
-            string currentEmail = dgvSuppliers.SelectedRows[0].Cells["Email"].Value?.ToString() ?? "";
-            string currentAddress = dgvSuppliers.SelectedRows[0].Cells["Address"].Value?.ToString() ?? "";
+            var form = CreateDialogForm("Изменить поставщика", 520, 440, out var tlp, out var bottomPanel);
+            var txtName = new ModernTextBox { Text = row["SupplierName"].ToString() };
+            var txtContact = new ModernTextBox { Text = row["ContactName"].ToString() };
+            var txtPhone = new ModernTextBox { Text = row["Phone"].ToString() };
+            var txtEmail = new ModernTextBox { Text = row["Email"].ToString() };
+            var txtAddress = new ModernTextBox { Multiline = true, Height = 70, Text = row["Address"].ToString() };
 
-            var form = CreateDialogForm("Редактировать поставщика", 500, 450, out var tlp, out var bottomPanel);
+            AddFormRow(tlp, "Название", txtName, 0);
+            AddFormRow(tlp, "Контакт", txtContact, 1);
+            AddFormRow(tlp, "Телефон", txtPhone, 2);
+            AddFormRow(tlp, "Email", txtEmail, 3);
+            AddFormRow(tlp, "Адрес", txtAddress, 4);
 
-            var txtName = new TextBox { Text = currentName };
-            var txtContact = new TextBox { Text = currentContact };
-            var txtPhone = new TextBox { Text = currentPhone };
-            var txtEmail = new TextBox { Text = currentEmail };
-            var txtAddress = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, Text = currentAddress };
-
-            AddFormRow(tlp, "Название:", txtName, 0);
-            AddFormRow(tlp, "Контакт:", txtContact, 1);
-            AddFormRow(tlp, "Телефон:", txtPhone, 2);
-            AddFormRow(tlp, "Email:", txtEmail, 3);
-            AddFormRow(tlp, "Адрес:", txtAddress, 4);
-
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (string.IsNullOrWhiteSpace(txtName.Text))
-                {
-                    MessageBox.Show("Заполните название поставщика!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
                 try
                 {
-                    string sql = @"UPDATE Suppliers 
-                                   SET SupplierName = @Name, 
-                                       ContactName = @Contact, 
-                                       Phone = @Phone, 
-                                       Email = @Email, 
-                                       Address = @Address 
-                                   WHERE SupplierID = @ID";
-                    ExecuteNonQuery(sql,
-                        ("@ID", supplierId),
-                        ("@Name", txtName.Text.Trim()),
-                        ("@Contact", txtContact.Text.Trim()),
-                        ("@Phone", txtPhone.Text.Trim()),
-                        ("@Email", txtEmail.Text.Trim()),
-                        ("@Address", txtAddress.Text.Trim()));
-
-                    MessageBox.Show("Поставщик успешно обновлён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "UPDATE Suppliers SET SupplierName=@n, ContactName=@c, Phone=@p, Email=@e, Address=@a WHERE SupplierID=@id",
+                        ("@id", id), ("@n", txtName.Text.Trim()), ("@c", txtContact.Text.Trim()),
+                        ("@p", txtPhone.Text.Trim()), ("@e", txtEmail.Text.Trim()),
+                        ("@a", txtAddress.Text.Trim()));
                     LoadSuppliers();
                     form.Close();
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -906,137 +685,70 @@ namespace Apple
 
         private void BtnDeleteSupplier_Click(object sender, EventArgs e)
         {
-            if (dgvSuppliers.SelectedRows.Count == 0)
+            if (dgvSuppliers.SelectedRows.Count == 0) return;
+            int id = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["ID"].Value);
+            if (MessageBox.Show("Удалить поставщика?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
-                MessageBox.Show("Выберите поставщика для удаления!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int supplierId = Convert.ToInt32(dgvSuppliers.SelectedRows[0].Cells["SupplierID"].Value);
-            string supplierName = dgvSuppliers.SelectedRows[0].Cells["SupplierName"].Value.ToString();
-
-            DialogResult result = MessageBox.Show(
-                $"Вы уверены, что хотите удалить поставщика '{supplierName}'?\n\n" +
-                "Внимание: если с поставщиком связаны закупки, удаление будет заблокировано!",
-                "Подтверждение удаления",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (result != DialogResult.Yes) return;
-
-            try
-            {
-                int purchasesCount = Convert.ToInt32(ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE SupplierID = @ID", ("@ID", supplierId)));
-
-                if (purchasesCount > 0)
+                try
                 {
-                    MessageBox.Show(
-                        $"Нельзя удалить поставщика!\nС ним связано {purchasesCount} закупок.\n" +
-                        "Сначала удалите связанные закупки.",
-                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    int pCount = Convert.ToInt32(DatabaseManager.ExecuteScalar("SELECT COUNT(*) FROM Purchases WHERE SupplierID=@id", ("@id", id)));
+                    if (pCount > 0) { MessageBox.Show("Нельзя удалить: есть связанные закупки!"); return; }
+                    DatabaseManager.ExecuteNonQuery("DELETE FROM Suppliers WHERE SupplierID=@id", ("@id", id));
+                    LoadSuppliers();
                 }
-
-                ExecuteNonQuery("DELETE FROM Suppliers WHERE SupplierID = @ID", ("@ID", supplierId));
-                MessageBox.Show("Поставщик успешно удалён!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadSuppliers();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             }
         }
-        #endregion
 
-        #region Закупки
-        private void InitializePurchasesTab(TabPage tab)
-        {
-            var panel = CreateToolbar();
+        private void BtnRefreshSuppliers_Click(object sender, EventArgs e) => LoadSuppliers();
 
-            var btnAdd = CreateButton("➕ Новая закупка", PrimaryColor, 160);
-            var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
-
-            btnAdd.Click += BtnAddPurchase_Click;
-            btnRefresh.Click += (s, e) => LoadPurchases();
-
-            panel.Controls.Add(btnAdd);
-            panel.Controls.Add(btnRefresh);
-
-            dgvPurchases = new DataGridView();
-            StyleDataGridView(dgvPurchases);
-
-            tab.Controls.Add(dgvPurchases);
-            tab.Controls.Add(panel);
-
-            LoadPurchases();
-        }
+        // ──────────────────── Закупки ────────────────────
 
         private void LoadPurchases()
         {
-            try
-            {
-                string query = "SELECT PurchaseID, ModelName, SupplierName, PurchaseDate, Quantity, UnitCost, TotalCost FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
-                dgvPurchases.DataSource = ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки закупок: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            dgvPurchases.DataSource = DatabaseManager.ExecuteQuery(@"
+                SELECT PurchaseID AS 'ID', ModelName AS 'Товар', SupplierName AS 'Поставщик',
+                       PurchaseDate AS 'Дата', Quantity AS 'Кол-во', UnitCost AS 'Цена', TotalCost AS 'Сумма'
+                FROM vw_PurchaseReport ORDER BY PurchaseDate DESC");
         }
 
         private void BtnAddPurchase_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Новая закупка", 450, 400, out var tlp, out var bottomPanel);
-
-            var cmbProduct = new ComboBox(); LoadProductsCombo(cmbProduct);
-            var cmbSupplier = new ComboBox(); LoadSuppliersCombo(cmbSupplier);
+            var form = CreateDialogForm("Новая закупка", 480, 400, out var tlp, out var bottomPanel);
+            var cmbProduct = new ComboBox(); LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
+            var cmbSupplier = new ComboBox(); LoadCombo(cmbSupplier, "SELECT SupplierID, SupplierName FROM Suppliers", "SupplierName", "SupplierID");
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
-            var txtQty = new TextBox();
-            var txtCost = new TextBox();
+            var txtQty = new ModernTextBox();
+            var txtCost = new ModernTextBox();
 
-            AddFormRow(tlp, "Товар:", cmbProduct, 0);
-            AddFormRow(tlp, "Поставщик:", cmbSupplier, 1);
-            AddFormRow(tlp, "Дата:", dtpDate, 2);
-            AddFormRow(tlp, "Количество:", txtQty, 3);
-            AddFormRow(tlp, "Цена за ед.:", txtCost, 4);
+            AddFormRow(tlp, "Товар", cmbProduct, 0);
+            AddFormRow(tlp, "Поставщик", cmbSupplier, 1);
+            AddFormRow(tlp, "Дата", dtpDate, 2);
+            AddFormRow(tlp, "Количество", txtQty, 3);
+            AddFormRow(tlp, "Цена за ед.", txtCost, 4);
 
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (cmbProduct.SelectedValue == null || cmbSupplier.SelectedValue == null ||
-                    string.IsNullOrWhiteSpace(txtQty.Text) || string.IsNullOrWhiteSpace(txtCost.Text))
-                {
-                    MessageBox.Show("Заполните все поля!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (cmbProduct.SelectedValue == null || cmbSupplier.SelectedValue == null || string.IsNullOrWhiteSpace(txtQty.Text))
+                { MessageBox.Show("Заполните все поля!"); return; }
                 try
                 {
-                    string sql = @"INSERT INTO Purchases (ProductID, SupplierID, PurchaseDate, Quantity, UnitCost) 
-                                   VALUES (@Product, @Supplier, @Date, @Qty, @Cost)";
-                    ExecuteNonQuery(sql,
-                        ("@Product", Convert.ToInt32(cmbProduct.SelectedValue)),
-                        ("@Supplier", Convert.ToInt32(cmbSupplier.SelectedValue)),
-                        ("@Date", dtpDate.Value.ToString("yyyy-MM-dd HH:mm:ss")),
-                        ("@Qty", int.Parse(txtQty.Text)),
-                        ("@Cost", decimal.Parse(txtCost.Text)));
-
-                    MessageBox.Show("Закупка успешно добавлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "INSERT INTO Purchases (ProductID, SupplierID, PurchaseDate, Quantity, UnitCost) VALUES (@p, @s, @d, @q, @c)",
+                        ("@p", Convert.ToInt32(cmbProduct.SelectedValue)),
+                        ("@s", Convert.ToInt32(cmbSupplier.SelectedValue)),
+                        ("@d", dtpDate.Value.ToString("yyyy-MM-dd")),
+                        ("@q", int.Parse(txtQty.Text)),
+                        ("@c", decimal.Parse(txtCost.Text)));
                     LoadPurchases();
                     LoadProducts();
                     form.Close();
                 }
-                catch (FormatException)
-                {
-                    MessageBox.Show("Количество и Цена должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -1046,141 +758,60 @@ namespace Apple
             form.ShowDialog();
         }
 
-        private void LoadProductsCombo(ComboBox cmb)
-        {
-            try
-            {
-                var dt = ExecuteQuery("SELECT ProductID, ModelName FROM Products");
-                cmb.DataSource = dt;
-                cmb.DisplayMember = "ModelName";
-                cmb.ValueMember = "ProductID";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
+        private void BtnRefreshPurchases_Click(object sender, EventArgs e) => LoadPurchases();
 
-        private void LoadSuppliersCombo(ComboBox cmb)
-        {
-            try
-            {
-                var dt = ExecuteQuery("SELECT SupplierID, SupplierName FROM Suppliers");
-                cmb.DataSource = dt;
-                cmb.DisplayMember = "SupplierName";
-                cmb.ValueMember = "SupplierID";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        #endregion
-
-        #region Продажи
-        private void InitializeSalesTab(TabPage tab)
-        {
-            var panel = CreateToolbar();
-
-            var btnAdd = CreateButton("➕ Новая продажа", PrimaryColor, 160);
-            var btnRefresh = CreateButton("🔄 Обновить", SecondaryColor, 120);
-            var btnPrintCheck = CreateButton("🖨️ Печать чека (.txt)", SuccessColor, 180);
-
-            btnAdd.Click += BtnAddSale_Click;
-            btnRefresh.Click += (s, e) => LoadSales();
-            btnPrintCheck.Click += BtnPrintReceipt_Click;
-
-            panel.Controls.Add(btnAdd);
-            panel.Controls.Add(btnRefresh);
-            panel.Controls.Add(btnPrintCheck);
-
-            dgvSales = new DataGridView();
-            StyleDataGridView(dgvSales);
-
-            tab.Controls.Add(dgvSales);
-            tab.Controls.Add(panel);
-
-            LoadSales();
-        }
+        // ──────────────────── Продажи ────────────────────
 
         private void LoadSales()
         {
-            try
-            {
-                string query = "SELECT SaleID, ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone FROM vw_SalesReport ORDER BY SaleDate DESC";
-                dgvSales.DataSource = ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки продаж: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            dgvSales.DataSource = DatabaseManager.ExecuteQuery(@"
+                SELECT SaleID AS 'ID', ModelName AS 'Товар', SaleDate AS 'Дата', Quantity AS 'Кол-во',
+                       UnitPrice AS 'Цена', TotalPrice AS 'Сумма', CustomerName AS 'Клиент', CustomerPhone AS 'Телефон'
+                FROM vw_SalesReport ORDER BY SaleDate DESC");
         }
 
         private void BtnAddSale_Click(object sender, EventArgs e)
         {
-            var form = CreateDialogForm("Новая продажа", 450, 450, out var tlp, out var bottomPanel);
-
-            var cmbProduct = new ComboBox(); LoadProductsCombo(cmbProduct);
+            var form = CreateDialogForm("Новая продажа", 480, 460, out var tlp, out var bottomPanel);
+            var cmbProduct = new ComboBox(); LoadCombo(cmbProduct, "SELECT ProductID, ModelName FROM Products", "ModelName", "ProductID");
             var dtpDate = new DateTimePicker { Format = DateTimePickerFormat.Short };
-            var txtQty = new TextBox();
-            var txtPrice = new TextBox();
-            var txtCustomer = new TextBox();
-            var txtPhone = new TextBox();
+            var txtQty = new ModernTextBox();
+            var txtPrice = new ModernTextBox();
+            var txtCustomer = new ModernTextBox();
+            var txtPhone = new ModernTextBox();
 
-            AddFormRow(tlp, "Товар:", cmbProduct, 0);
-            AddFormRow(tlp, "Дата:", dtpDate, 1);
-            AddFormRow(tlp, "Количество:", txtQty, 2);
-            AddFormRow(tlp, "Цена за ед.:", txtPrice, 3);
-            AddFormRow(tlp, "Клиент:", txtCustomer, 4);
-            AddFormRow(tlp, "Телефон:", txtPhone, 5);
+            AddFormRow(tlp, "Товар", cmbProduct, 0);
+            AddFormRow(tlp, "Дата", dtpDate, 1);
+            AddFormRow(tlp, "Количество", txtQty, 2);
+            AddFormRow(tlp, "Цена за ед.", txtPrice, 3);
+            AddFormRow(tlp, "Клиент", txtCustomer, 4);
+            AddFormRow(tlp, "Телефон", txtPhone, 5);
 
-            var btnSave = CreateButton("💾 Сохранить", PrimaryColor, 110);
-            var btnCancel = CreateButton("❌ Отмена", SecondaryColor, 110);
+            var btnSave = CreateDialogButton("💾  Сохранить", Indigo600, Color.FromArgb(238, 242, 255), Indigo600, 140);
+            var btnCancel = CreateDialogButton("Отмена", Slate500, Slate50, Slate700, 120);
 
             btnCancel.Click += (s, ev) => form.Close();
             btnSave.Click += (s, ev) =>
             {
-                if (cmbProduct.SelectedValue == null || string.IsNullOrWhiteSpace(txtQty.Text) || string.IsNullOrWhiteSpace(txtPrice.Text))
-                {
-                    MessageBox.Show("Заполните обязательные поля!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (cmbProduct.SelectedValue == null || string.IsNullOrWhiteSpace(txtQty.Text))
+                { MessageBox.Show("Заполните обязательные поля!"); return; }
                 try
                 {
-                    int stock = Convert.ToInt32(ExecuteScalar("SELECT StockQuantity FROM Products WHERE ProductID = @ProductID",
-                                                              ("@ProductID", Convert.ToInt32(cmbProduct.SelectedValue))));
-                    int requestedQty = int.Parse(txtQty.Text);
+                    int productId = Convert.ToInt32(cmbProduct.SelectedValue);
+                    int stock = Convert.ToInt32(DatabaseManager.ExecuteScalar("SELECT StockQuantity FROM Products WHERE ProductID = @id", ("@id", productId)));
+                    int qty = int.Parse(txtQty.Text);
+                    if (stock < qty) { MessageBox.Show($"Недостаточно товара на складе! Остаток: {stock} шт."); return; }
 
-                    if (stock < requestedQty)
-                    {
-                        MessageBox.Show($"Недостаточно товара на складе! Текущий остаток: {stock} шт.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    string sql = @"INSERT INTO Sales (ProductID, SaleDate, Quantity, UnitPrice, CustomerName, CustomerPhone) 
-                                   VALUES (@Product, @Date, @Qty, @Price, @Customer, @Phone)";
-                    ExecuteNonQuery(sql,
-                        ("@Product", Convert.ToInt32(cmbProduct.SelectedValue)),
-                        ("@Date", dtpDate.Value.ToString("yyyy-MM-dd HH:mm:ss")),
-                        ("@Qty", requestedQty),
-                        ("@Price", decimal.Parse(txtPrice.Text)),
-                        ("@Customer", txtCustomer.Text.Trim()),
-                        ("@Phone", txtPhone.Text.Trim()));
-
-                    MessageBox.Show("Продажа успешно оформлена!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DatabaseManager.ExecuteNonQuery(
+                        "INSERT INTO Sales (ProductID, SaleDate, Quantity, UnitPrice, CustomerName, CustomerPhone) VALUES (@p, @d, @q, @pr, @c, @ph)",
+                        ("@p", productId), ("@d", dtpDate.Value.ToString("yyyy-MM-dd")),
+                        ("@q", qty), ("@pr", decimal.Parse(txtPrice.Text)),
+                        ("@c", txtCustomer.Text.Trim()), ("@ph", txtPhone.Text.Trim()));
                     LoadSales();
                     LoadProducts();
                     form.Close();
                 }
-                catch (FormatException)
-                {
-                    MessageBox.Show("Количество и Цена должны быть числами!", "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch (Exception ex) { MessageBox.Show(ex.Message); }
             };
 
             bottomPanel.Controls.Add(btnCancel);
@@ -1192,295 +823,100 @@ namespace Apple
 
         private void BtnPrintReceipt_Click(object sender, EventArgs e)
         {
-            if (dgvSales.SelectedRows.Count == 0)
+            if (dgvSales.SelectedRows.Count == 0) { MessageBox.Show("Выберите продажу!"); return; }
+            int saleId = Convert.ToInt32(dgvSales.SelectedRows[0].Cells["ID"].Value);
+            var dt = DatabaseManager.ExecuteQuery("SELECT * FROM vw_SalesReport WHERE SaleID = @id", ("@id", saleId));
+            if (dt.Rows.Count == 0) return;
+            var row = dt.Rows[0];
+
+            var sb = new StringBuilder();
+            sb.AppendLine("════════════════════════════════════════");
+            sb.AppendLine("          iStore — Apple Shop           ");
+            sb.AppendLine("════════════════════════════════════════");
+            sb.AppendLine($"  Дата:    {row["SaleDate"]}");
+            sb.AppendLine($"  Клиент:  {row["CustomerName"]}");
+            sb.AppendLine($"  Тел.:    {row["CustomerPhone"]}");
+            sb.AppendLine("────────────────────────────────────────");
+            sb.AppendLine($"  {row["ModelName"]}");
+            sb.AppendLine($"  {row["Quantity"]} × {row["UnitPrice"]} ₽  =  {row["TotalPrice"]} ₽");
+            sb.AppendLine("────────────────────────────────────────");
+            sb.AppendLine($"  ИТОГО:   {row["TotalPrice"]} ₽");
+            sb.AppendLine("════════════════════════════════════════");
+            sb.AppendLine("        Спасибо за покупку! 🍎");
+            sb.AppendLine("════════════════════════════════════════");
+
+            using (var sfd = new SaveFileDialog())
             {
-                MessageBox.Show("Выберите продажу в таблице для печати чека!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int saleId = Convert.ToInt32(dgvSales.SelectedRows[0].Cells["SaleID"].Value);
-
-            try
-            {
-                string query = @"SELECT ModelName, SaleDate, Quantity, UnitPrice, TotalPrice, CustomerName, CustomerPhone 
-                                 FROM vw_SalesReport WHERE SaleID = @SaleID";
-
-                using var conn = new SqliteConnection(iStoreDB.ConnectionString);
-                conn.Open();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = query;
-                cmd.Parameters.AddWithValue("@SaleID", saleId);
-
-                using var reader = cmd.ExecuteReader();
-                if (!reader.Read())
+                sfd.Filter = "Текстовые файлы (*.txt)|*.txt";
+                sfd.FileName = $"Receipt_{saleId}.txt";
+                if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    MessageBox.Show("Данные о продаже не найдены.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                string modelName = reader["ModelName"].ToString();
-                string saleDateStr = reader["SaleDate"].ToString();
-                DateTime saleDate = DateTime.TryParse(saleDateStr, out var parsedDate) ? parsedDate : DateTime.Now;
-                int qty = Convert.ToInt32(reader["Quantity"]);
-                decimal price = Convert.ToDecimal(reader["UnitPrice"]);
-                decimal total = Convert.ToDecimal(reader["TotalPrice"]);
-                string customer = string.IsNullOrWhiteSpace(reader["CustomerName"].ToString()) ? "Розничный покупатель" : reader["CustomerName"].ToString();
-                string phone = reader["CustomerPhone"].ToString();
-
-                StringBuilder receipt = new StringBuilder();
-                receipt.AppendLine("========================================");
-                receipt.AppendLine("           iStore - Apple Shop          ");
-                receipt.AppendLine("========================================");
-                receipt.AppendLine($"Дата:  {saleDate:dd.MM.yyyy HH:mm}");
-                receipt.AppendLine($"Клиент: {customer}");
-                if (!string.IsNullOrWhiteSpace(phone)) receipt.AppendLine($"Тел.:  {phone}");
-                receipt.AppendLine("----------------------------------------");
-                receipt.AppendLine("Наименование       Кол.   Цена      Сумма");
-                receipt.AppendLine("----------------------------------------");
-
-                string itemLine = $"{modelName,-18} {qty,-4} {price,-8:N2} {total,-8:N2}";
-                if (itemLine.Length > 40) itemLine = itemLine.Substring(0, 40);
-                receipt.AppendLine(itemLine);
-
-                receipt.AppendLine("----------------------------------------");
-                receipt.AppendLine($"ИТОГО К ОПЛАТЕ:       {total,12:N2} ₽");
-                receipt.AppendLine("========================================");
-                receipt.AppendLine("   Спасибо за покупку! Ждем вас снова.  ");
-                receipt.AppendLine("========================================");
-
-                using (SaveFileDialog sfd = new SaveFileDialog())
-                {
-                    sfd.Filter = "Текстовые файлы (*.txt)|*.txt";
-                    sfd.FileName = $"Check_{saleId}_{saleDate:yyyyMMdd_HHmm}.txt";
-                    sfd.Title = "Сохранить чек";
-
-                    if (sfd.ShowDialog() == DialogResult.OK)
-                    {
-                        File.WriteAllText(sfd.FileName, receipt.ToString(), Encoding.UTF8);
-                        MessageBox.Show($"Чек успешно сохранен в:\n{sfd.FileName}", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                        if (MessageBox.Show("Открыть чек сейчас?", "Вопрос", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                        {
-                            System.Diagnostics.Process.Start("notepad.exe", sfd.FileName);
-                        }
-                    }
+                    File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+                    MessageBox.Show("Чек сохранён!", "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при формировании чека: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        #endregion
-
-        #region Отчеты
-        private void InitializeReportsTab(TabPage tab)
-        {
-            var panel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 70,
-                Padding = new Padding(15, 15, 15, 10),
-                BackColor = BgColor,
-                WrapContents = false,
-                FlowDirection = FlowDirection.LeftToRight
-            };
-
-            var btnStock = CreateButton("📦 Остатки", PrimaryColor, 150);
-            var btnSales = CreateButton("💰 Продажи", PrimaryColor, 150);
-            var btnPurchase = CreateButton("📥 Закупки", PrimaryColor, 150);
-            var btnProfit = CreateButton("📈 Прибыль", PrimaryColor, 150);
-            var btnExport = CreateButton("💾 Экспорт в Excel (.csv)", SuccessColor, 220);
-
-            btnStock.Click += BtnStockReport_Click;
-            btnSales.Click += BtnSalesReport_Click;
-            btnPurchase.Click += BtnPurchaseReport_Click;
-            btnProfit.Click += BtnProfitReport_Click;
-            btnExport.Click += BtnExportToExcel_Click;
-
-            panel.Controls.Add(btnStock);
-            panel.Controls.Add(btnSales);
-            panel.Controls.Add(btnPurchase);
-            panel.Controls.Add(btnProfit);
-            panel.Controls.Add(btnExport);
-
-            dgvReports = new DataGridView();
-            StyleDataGridView(dgvReports);
-
-            tab.Controls.Add(dgvReports);
-            tab.Controls.Add(panel);
         }
 
-        private void BtnStockReport_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string query = @"SELECT ModelName AS 'Модель', StockQuantity AS 'Остаток (шт)', BasePrice AS 'Цена (₽)', 
-                                        (StockQuantity * BasePrice) AS 'Общая стоимость (₽)'
-                                 FROM Products ORDER BY StockQuantity DESC";
-                dgvReports.DataSource = ExecuteQuery(query);
-                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            }
-            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }
+        private void BtnRefreshSales_Click(object sender, EventArgs e) => LoadSales();
 
-        private void BtnSalesReport_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string query = @"SELECT strftime('%d.%m.%Y', SaleDate) AS 'Дата', ModelName AS 'Товар', 
-                                        Quantity AS 'Кол-во', UnitPrice AS 'Цена (₽)', TotalPrice AS 'Сумма (₽)', CustomerName AS 'Клиент'
-                                 FROM vw_SalesReport ORDER BY SaleDate DESC";
-                dgvReports.DataSource = ExecuteQuery(query);
-                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            }
-            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }
+        // ──────────────────── Отчёты ────────────────────
 
-        private void BtnPurchaseReport_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string query = @"SELECT strftime('%d.%m.%Y', PurchaseDate) AS 'Дата', ModelName AS 'Товар', SupplierName AS 'Поставщик', 
-                                        Quantity AS 'Кол-во', UnitCost AS 'Цена (₽)', TotalCost AS 'Сумма (₽)'
-                                 FROM vw_PurchaseReport ORDER BY PurchaseDate DESC";
-                dgvReports.DataSource = ExecuteQuery(query);
-                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            }
-            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }
+        private void BtnStockReport_Click(object sender, EventArgs e) =>
+            dgvReports.DataSource = DatabaseManager.ExecuteQuery(
+                "SELECT ModelName AS 'Модель', StockQuantity AS 'Остаток', BasePrice AS 'Цена', (StockQuantity * BasePrice) AS 'Сумма' FROM Products");
+
+        private void BtnSalesReport_Click(object sender, EventArgs e) =>
+            dgvReports.DataSource = DatabaseManager.ExecuteQuery("SELECT * FROM vw_SalesReport");
+
+        private void BtnPurchaseReport_Click(object sender, EventArgs e) =>
+            dgvReports.DataSource = DatabaseManager.ExecuteQuery("SELECT * FROM vw_PurchaseReport");
 
         private void BtnProfitReport_Click(object sender, EventArgs e)
         {
-            try
-            {
-                decimal totalSales = Convert.ToDecimal(ExecuteScalar("SELECT COALESCE(SUM(TotalPrice), 0) FROM Sales"));
-                decimal totalPurchases = Convert.ToDecimal(ExecuteScalar("SELECT COALESCE(SUM(TotalCost),  0) FROM Purchases"));
-                decimal profit = totalSales - totalPurchases;
-
-                DataTable dt = new DataTable();
-                dt.Columns.Add("Показатель", typeof(string));
-                dt.Columns.Add("Значение (₽)", typeof(string));
-
-                dt.Rows.Add("💰 Общая сумма продаж", totalSales.ToString("N2"));
-                dt.Rows.Add("📥 Общая сумма закупок", totalPurchases.ToString("N2"));
-                dt.Rows.Add("═══════════════════════", "═══════════════");
-                dt.Rows.Add("📊 ЧИСТАЯ ПРИБЫЛЬ", profit.ToString("N2"));
-
-                string status = profit > 0 ? "✅ Работаем в плюс!" : (profit < 0 ? "⚠️ Работаем в убыток!" : "⚖️ В ноль");
-                dt.Rows.Add("📈 Статус", status);
-
-                dgvReports.DataSource = dt;
-
-                dgvReports.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-                dgvReports.Columns[0].Width = 300;
-                dgvReports.Columns[1].Width = 200;
-                dgvReports.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-            }
-            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            decimal sales = Convert.ToDecimal(DatabaseManager.ExecuteScalar("SELECT COALESCE(SUM(TotalPrice), 0) FROM vw_SalesReport"));
+            decimal purch = Convert.ToDecimal(DatabaseManager.ExecuteScalar("SELECT COALESCE(SUM(TotalCost), 0) FROM vw_PurchaseReport"));
+            var dt = new DataTable();
+            dt.Columns.Add("Показатель");
+            dt.Columns.Add("Значение (₽)");
+            dt.Rows.Add("Выручка (продажи)", sales.ToString("N2"));
+            dt.Rows.Add("Расходы (закупки)", purch.ToString("N2"));
+            dt.Rows.Add("ПРИБЫЛЬ", (sales - purch).ToString("N2"));
+            dgvReports.DataSource = dt;
         }
 
         private void BtnExportToExcel_Click(object sender, EventArgs e)
         {
-            if (dgvReports.DataSource == null)
-            {
-                MessageBox.Show("Нет данных для экспорта. Сначала сформируйте отчет.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (dgvReports.DataSource == null) { MessageBox.Show("Сначала сформируйте отчёт!"); return; }
+            var dt = dgvReports.DataSource as DataTable;
+            if (dt == null || dt.Rows.Count == 0) return;
 
-            DataTable dt = GetDataTableFromSource(dgvReports.DataSource);
-            if (dt == null || dt.Rows.Count == 0)
+            using (var sfd = new SaveFileDialog())
             {
-                MessageBox.Show("Нет данных для экспорта. Сначала сформируйте отчет.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            using (SaveFileDialog sfd = new SaveFileDialog())
-            {
-                sfd.Filter = "Файлы Excel (CSV) (*.csv)|*.csv";
-                sfd.FileName = $"Otchet_{DateTime.Now:yyyyMMdd_HHmm}.csv";
-                sfd.Title = "Экспорт отчета в Excel";
-
+                sfd.Filter = "CSV файлы (*.csv)|*.csv";
+                sfd.FileName = "Report.csv";
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
-                    try
+                    var sb = new StringBuilder();
+                    sb.AppendLine("sep=;");
+                    for (int i = 0; i < dt.Columns.Count; i++)
                     {
-                        const string separator = ";";
-                        var sb = new StringBuilder();
-
-                        sb.AppendLine($"sep={separator}");
-
+                        sb.Append(dt.Columns[i].ColumnName);
+                        if (i < dt.Columns.Count - 1) sb.Append(";");
+                    }
+                    sb.AppendLine();
+                    foreach (DataRow row in dt.Rows)
+                    {
                         for (int i = 0; i < dt.Columns.Count; i++)
                         {
-                            sb.Append(EscapeCsvValue(dt.Columns[i].ColumnName, separator));
-                            if (i < dt.Columns.Count - 1) sb.Append(separator);
+                            sb.Append(row[i].ToString().Replace("\"", "\"\""));
+                            if (i < dt.Columns.Count - 1) sb.Append(";");
                         }
                         sb.AppendLine();
-
-                        foreach (DataRow row in dt.Rows)
-                        {
-                            for (int i = 0; i < dt.Columns.Count; i++)
-                            {
-                                string val = row[i] == null || row[i] is DBNull
-                                    ? ""
-                                    : row[i].ToString();
-
-                                sb.Append(EscapeCsvValue(val, separator));
-                                if (i < dt.Columns.Count - 1) sb.Append(separator);
-                            }
-                            sb.AppendLine();
-                        }
-
-                        File.WriteAllText(sfd.FileName, sb.ToString(), new UTF8Encoding(true));
-
-                        MessageBox.Show(
-                            "Отчет успешно экспортирован!\n\n" +
-                            $"Файл сохранён:\n{sfd.FileName}\n\n" +
-                            "Откройте его двойным кликом — Excel автоматически разобьёт данные по колонкам.",
-                            "Успех",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Ошибка при сохранении файла: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    File.WriteAllText(sfd.FileName, sb.ToString(), new UTF8Encoding(true));
+                    MessageBox.Show("Экспорт завершён!", "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
         }
-
-        private DataTable GetDataTableFromSource(object source)
-        {
-            if (source is DataTable dt)
-                return dt;
-            if (source is DataView dv)
-                return dv.Table;
-            if (source is BindingSource bs && bs.DataSource is DataTable bsDt)
-                return bsDt;
-
-            return null;
-        }
-
-        private string EscapeCsvValue(string value, string separator)
-        {
-            if (string.IsNullOrEmpty(value))
-                return "";
-
-            bool needsQuotes = value.Contains(separator) ||
-                               value.Contains("\"") ||
-                               value.Contains("\n") ||
-                               value.Contains("\r") ||
-                               value.StartsWith(" ") ||
-                               value.EndsWith(" ");
-
-            if (needsQuotes)
-            {
-                string escaped = value.Replace("\"", "\"\"");
-                return $"\"{escaped}\"";
-            }
-
-            return value;
-        }
-        #endregion
     }
 }
