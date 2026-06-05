@@ -48,21 +48,30 @@
             tableLayoutPanel4 = new TableLayoutPanel();
             dataGridView4 = new DataGridView();
             flowLayoutPanel4 = new FlowLayoutPanel();
-            btnAddPurchase = new Button();
-            btnRefreshPurchase = new Button();
+            btnAddCustomer = new Button();
+            btnEditCustomer = new Button();
+            btnDeleteCustomer = new Button();
+            btnRefreshCustomer = new Button();
 
             tabPage5 = new TabPage();
             tableLayoutPanel5 = new TableLayoutPanel();
             dataGridView5 = new DataGridView();
             flowLayoutPanel5 = new FlowLayoutPanel();
-            btnAddSale = new Button();
-            btnRefreshSale = new Button();
-            btnPrintCheck = new Button();
+            btnAddPurchase = new Button();
+            btnRefreshPurchase = new Button();
 
             tabPage6 = new TabPage();
             tableLayoutPanel6 = new TableLayoutPanel();
             dataGridView6 = new DataGridView();
             flowLayoutPanel6 = new FlowLayoutPanel();
+            btnAddSale = new Button();
+            btnRefreshSale = new Button();
+            btnPrintCheck = new Button();
+
+            tabPage7 = new TabPage();
+            tableLayoutPanel7 = new TableLayoutPanel();
+            dataGridView7 = new DataGridView();
+            flowLayoutPanel7 = new FlowLayoutPanel();
             btnReportStock = new Button();
             btnReportSales = new Button();
             btnReportPurchases = new Button();
@@ -100,6 +109,11 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView6).BeginInit();
             flowLayoutPanel6.SuspendLayout();
 
+            tabPage7.SuspendLayout();
+            tableLayoutPanel7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView7).BeginInit();
+            flowLayoutPanel7.SuspendLayout();
+
             SuspendLayout();
 
             // 
@@ -111,6 +125,7 @@
             tabControl1.Controls.Add(tabPage4);
             tabControl1.Controls.Add(tabPage5);
             tabControl1.Controls.Add(tabPage6);
+            tabControl1.Controls.Add(tabPage7);
             tabControl1.Dock = DockStyle.Fill;
             tabControl1.Location = new Point(0, 0);
             tabControl1.Name = "tabControl1";
@@ -381,7 +396,7 @@
             btnRefreshSupplier.UseVisualStyleBackColor = true;
 
             // 
-            // tabPage4 - Закупки
+            // tabPage4 - Покупатели
             // 
             tabPage4.Controls.Add(tableLayoutPanel4);
             tabPage4.Location = new Point(4, 24);
@@ -389,7 +404,7 @@
             tabPage4.Padding = new Padding(3);
             tabPage4.Size = new Size(792, 422);
             tabPage4.TabIndex = 3;
-            tabPage4.Text = "Закупки";
+            tabPage4.Text = "Покупатели";
             tabPage4.UseVisualStyleBackColor = true;
 
             // 
@@ -421,8 +436,10 @@
             // 
             // flowLayoutPanel4
             // 
-            flowLayoutPanel4.Controls.Add(btnAddPurchase);
-            flowLayoutPanel4.Controls.Add(btnRefreshPurchase);
+            flowLayoutPanel4.Controls.Add(btnAddCustomer);
+            flowLayoutPanel4.Controls.Add(btnEditCustomer);
+            flowLayoutPanel4.Controls.Add(btnDeleteCustomer);
+            flowLayoutPanel4.Controls.Add(btnRefreshCustomer);
             flowLayoutPanel4.Dock = DockStyle.Fill;
             flowLayoutPanel4.Location = new Point(3, 374);
             flowLayoutPanel4.Name = "flowLayoutPanel4";
@@ -430,27 +447,47 @@
             flowLayoutPanel4.TabIndex = 1;
 
             // 
-            // btnAddPurchase
+            // btnAddCustomer
             // 
-            btnAddPurchase.Location = new Point(3, 3);
-            btnAddPurchase.Name = "btnAddPurchase";
-            btnAddPurchase.Size = new Size(100, 30);
-            btnAddPurchase.TabIndex = 0;
-            btnAddPurchase.Text = "Новая закупка";
-            btnAddPurchase.UseVisualStyleBackColor = true;
+            btnAddCustomer.Location = new Point(3, 3);
+            btnAddCustomer.Name = "btnAddCustomer";
+            btnAddCustomer.Size = new Size(100, 30);
+            btnAddCustomer.TabIndex = 0;
+            btnAddCustomer.Text = "Добавить";
+            btnAddCustomer.UseVisualStyleBackColor = true;
 
             // 
-            // btnRefreshPurchase
+            // btnEditCustomer
             // 
-            btnRefreshPurchase.Location = new Point(109, 3);
-            btnRefreshPurchase.Name = "btnRefreshPurchase";
-            btnRefreshPurchase.Size = new Size(70, 30);
-            btnRefreshPurchase.TabIndex = 1;
-            btnRefreshPurchase.Text = "Обновить";
-            btnRefreshPurchase.UseVisualStyleBackColor = true;
+            btnEditCustomer.Location = new Point(109, 3);
+            btnEditCustomer.Name = "btnEditCustomer";
+            btnEditCustomer.Size = new Size(70, 30);
+            btnEditCustomer.TabIndex = 1;
+            btnEditCustomer.Text = "Править";
+            btnEditCustomer.UseVisualStyleBackColor = true;
 
             // 
-            // tabPage5 - Продажи
+            // btnDeleteCustomer
+            // 
+            btnDeleteCustomer.Location = new Point(185, 3);
+            btnDeleteCustomer.Name = "btnDeleteCustomer";
+            btnDeleteCustomer.Size = new Size(70, 30);
+            btnDeleteCustomer.TabIndex = 2;
+            btnDeleteCustomer.Text = "Удалить";
+            btnDeleteCustomer.UseVisualStyleBackColor = true;
+
+            // 
+            // btnRefreshCustomer
+            // 
+            btnRefreshCustomer.Location = new Point(261, 3);
+            btnRefreshCustomer.Name = "btnRefreshCustomer";
+            btnRefreshCustomer.Size = new Size(70, 30);
+            btnRefreshCustomer.TabIndex = 3;
+            btnRefreshCustomer.Text = "Обновить";
+            btnRefreshCustomer.UseVisualStyleBackColor = true;
+
+            // 
+            // tabPage5 - Закупки
             // 
             tabPage5.Controls.Add(tableLayoutPanel5);
             tabPage5.Location = new Point(4, 24);
@@ -458,7 +495,7 @@
             tabPage5.Padding = new Padding(3);
             tabPage5.Size = new Size(792, 422);
             tabPage5.TabIndex = 4;
-            tabPage5.Text = "Продажи";
+            tabPage5.Text = "Закупки";
             tabPage5.UseVisualStyleBackColor = true;
 
             // 
@@ -490,14 +527,83 @@
             // 
             // flowLayoutPanel5
             // 
-            flowLayoutPanel5.Controls.Add(btnAddSale);
-            flowLayoutPanel5.Controls.Add(btnRefreshSale);
-            flowLayoutPanel5.Controls.Add(btnPrintCheck);
+            flowLayoutPanel5.Controls.Add(btnAddPurchase);
+            flowLayoutPanel5.Controls.Add(btnRefreshPurchase);
             flowLayoutPanel5.Dock = DockStyle.Fill;
             flowLayoutPanel5.Location = new Point(3, 374);
             flowLayoutPanel5.Name = "flowLayoutPanel5";
             flowLayoutPanel5.Size = new Size(780, 39);
             flowLayoutPanel5.TabIndex = 1;
+
+            // 
+            // btnAddPurchase
+            // 
+            btnAddPurchase.Location = new Point(3, 3);
+            btnAddPurchase.Name = "btnAddPurchase";
+            btnAddPurchase.Size = new Size(100, 30);
+            btnAddPurchase.TabIndex = 0;
+            btnAddPurchase.Text = "Новая закупка";
+            btnAddPurchase.UseVisualStyleBackColor = true;
+
+            // 
+            // btnRefreshPurchase
+            // 
+            btnRefreshPurchase.Location = new Point(109, 3);
+            btnRefreshPurchase.Name = "btnRefreshPurchase";
+            btnRefreshPurchase.Size = new Size(70, 30);
+            btnRefreshPurchase.TabIndex = 1;
+            btnRefreshPurchase.Text = "Обновить";
+            btnRefreshPurchase.UseVisualStyleBackColor = true;
+
+            // 
+            // tabPage6 - Продажи
+            // 
+            tabPage6.Controls.Add(tableLayoutPanel6);
+            tabPage6.Location = new Point(4, 24);
+            tabPage6.Name = "tabPage6";
+            tabPage6.Padding = new Padding(3);
+            tabPage6.Size = new Size(792, 422);
+            tabPage6.TabIndex = 5;
+            tabPage6.Text = "Продажи";
+            tabPage6.UseVisualStyleBackColor = true;
+
+            // 
+            // tableLayoutPanel6
+            // 
+            tableLayoutPanel6.ColumnCount = 1;
+            tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel6.Controls.Add(dataGridView6, 0, 0);
+            tableLayoutPanel6.Controls.Add(flowLayoutPanel6, 0, 1);
+            tableLayoutPanel6.Dock = DockStyle.Fill;
+            tableLayoutPanel6.Location = new Point(3, 3);
+            tableLayoutPanel6.Name = "tableLayoutPanel6";
+            tableLayoutPanel6.RowCount = 2;
+            tableLayoutPanel6.RowStyles.Add(new RowStyle(SizeType.Percent, 89.35667F));
+            tableLayoutPanel6.RowStyles.Add(new RowStyle(SizeType.Percent, 10.64333F));
+            tableLayoutPanel6.Size = new Size(786, 416);
+            tableLayoutPanel6.TabIndex = 0;
+
+            // 
+            // dataGridView6
+            // 
+            dataGridView6.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView6.Dock = DockStyle.Fill;
+            dataGridView6.Location = new Point(3, 3);
+            dataGridView6.Name = "dataGridView6";
+            dataGridView6.Size = new Size(780, 365);
+            dataGridView6.TabIndex = 0;
+
+            // 
+            // flowLayoutPanel6
+            // 
+            flowLayoutPanel6.Controls.Add(btnAddSale);
+            flowLayoutPanel6.Controls.Add(btnRefreshSale);
+            flowLayoutPanel6.Controls.Add(btnPrintCheck);
+            flowLayoutPanel6.Dock = DockStyle.Fill;
+            flowLayoutPanel6.Location = new Point(3, 374);
+            flowLayoutPanel6.Name = "flowLayoutPanel6";
+            flowLayoutPanel6.Size = new Size(780, 39);
+            flowLayoutPanel6.TabIndex = 1;
 
             // 
             // btnAddSale
@@ -530,56 +636,56 @@
             btnPrintCheck.UseVisualStyleBackColor = true;
 
             // 
-            // tabPage6 - Отчеты
+            // tabPage7 - Отчеты
             // 
-            tabPage6.Controls.Add(tableLayoutPanel6);
-            tabPage6.Location = new Point(4, 24);
-            tabPage6.Name = "tabPage6";
-            tabPage6.Padding = new Padding(3);
-            tabPage6.Size = new Size(792, 422);
-            tabPage6.TabIndex = 5;
-            tabPage6.Text = "Отчеты";
-            tabPage6.UseVisualStyleBackColor = true;
+            tabPage7.Controls.Add(tableLayoutPanel7);
+            tabPage7.Location = new Point(4, 24);
+            tabPage7.Name = "tabPage7";
+            tabPage7.Padding = new Padding(3);
+            tabPage7.Size = new Size(792, 422);
+            tabPage7.TabIndex = 6;
+            tabPage7.Text = "Отчеты";
+            tabPage7.UseVisualStyleBackColor = true;
 
             // 
-            // tableLayoutPanel6
+            // tableLayoutPanel7
             // 
-            tableLayoutPanel6.ColumnCount = 1;
-            tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            tableLayoutPanel6.Controls.Add(dataGridView6, 0, 0);
-            tableLayoutPanel6.Controls.Add(flowLayoutPanel6, 0, 1);
-            tableLayoutPanel6.Dock = DockStyle.Fill;
-            tableLayoutPanel6.Location = new Point(3, 3);
-            tableLayoutPanel6.Name = "tableLayoutPanel6";
-            tableLayoutPanel6.RowCount = 2;
-            tableLayoutPanel6.RowStyles.Add(new RowStyle(SizeType.Percent, 89.35667F));
-            tableLayoutPanel6.RowStyles.Add(new RowStyle(SizeType.Percent, 10.64333F));
-            tableLayoutPanel6.Size = new Size(786, 416);
-            tableLayoutPanel6.TabIndex = 0;
+            tableLayoutPanel7.ColumnCount = 1;
+            tableLayoutPanel7.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel7.Controls.Add(dataGridView7, 0, 0);
+            tableLayoutPanel7.Controls.Add(flowLayoutPanel7, 0, 1);
+            tableLayoutPanel7.Dock = DockStyle.Fill;
+            tableLayoutPanel7.Location = new Point(3, 3);
+            tableLayoutPanel7.Name = "tableLayoutPanel7";
+            tableLayoutPanel7.RowCount = 2;
+            tableLayoutPanel7.RowStyles.Add(new RowStyle(SizeType.Percent, 89.35667F));
+            tableLayoutPanel7.RowStyles.Add(new RowStyle(SizeType.Percent, 10.64333F));
+            tableLayoutPanel7.Size = new Size(786, 416);
+            tableLayoutPanel7.TabIndex = 0;
 
             // 
-            // dataGridView6
+            // dataGridView7
             // 
-            dataGridView6.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView6.Dock = DockStyle.Fill;
-            dataGridView6.Location = new Point(3, 3);
-            dataGridView6.Name = "dataGridView6";
-            dataGridView6.Size = new Size(780, 365);
-            dataGridView6.TabIndex = 0;
+            dataGridView7.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView7.Dock = DockStyle.Fill;
+            dataGridView7.Location = new Point(3, 3);
+            dataGridView7.Name = "dataGridView7";
+            dataGridView7.Size = new Size(780, 365);
+            dataGridView7.TabIndex = 0;
 
             // 
-            // flowLayoutPanel6
+            // flowLayoutPanel7
             // 
-            flowLayoutPanel6.Controls.Add(btnReportStock);
-            flowLayoutPanel6.Controls.Add(btnReportSales);
-            flowLayoutPanel6.Controls.Add(btnReportPurchases);
-            flowLayoutPanel6.Controls.Add(btnReportProfit);
-            flowLayoutPanel6.Controls.Add(btnExportExcel);
-            flowLayoutPanel6.Dock = DockStyle.Fill;
-            flowLayoutPanel6.Location = new Point(3, 374);
-            flowLayoutPanel6.Name = "flowLayoutPanel6";
-            flowLayoutPanel6.Size = new Size(780, 39);
-            flowLayoutPanel6.TabIndex = 1;
+            flowLayoutPanel7.Controls.Add(btnReportStock);
+            flowLayoutPanel7.Controls.Add(btnReportSales);
+            flowLayoutPanel7.Controls.Add(btnReportPurchases);
+            flowLayoutPanel7.Controls.Add(btnReportProfit);
+            flowLayoutPanel7.Controls.Add(btnExportExcel);
+            flowLayoutPanel7.Dock = DockStyle.Fill;
+            flowLayoutPanel7.Location = new Point(3, 374);
+            flowLayoutPanel7.Name = "flowLayoutPanel7";
+            flowLayoutPanel7.Size = new Size(780, 39);
+            flowLayoutPanel7.TabIndex = 1;
 
             // 
             // btnReportStock
@@ -672,6 +778,11 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView6).EndInit();
             flowLayoutPanel6.ResumeLayout(false);
 
+            tabPage7.ResumeLayout(false);
+            tableLayoutPanel7.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dataGridView7).EndInit();
+            flowLayoutPanel7.ResumeLayout(false);
+
             ResumeLayout(false);
         }
 
@@ -684,6 +795,7 @@
         private TabPage tabPage4;
         private TabPage tabPage5;
         private TabPage tabPage6;
+        private TabPage tabPage7;
 
         private TableLayoutPanel tableLayoutPanel1;
         private DataGridView dataGridView1;
@@ -711,19 +823,27 @@
         private TableLayoutPanel tableLayoutPanel4;
         private DataGridView dataGridView4;
         private FlowLayoutPanel flowLayoutPanel4;
-        private Button btnAddPurchase;
-        private Button btnRefreshPurchase;
+        private Button btnAddCustomer;
+        private Button btnEditCustomer;
+        private Button btnDeleteCustomer;
+        private Button btnRefreshCustomer;
 
         private TableLayoutPanel tableLayoutPanel5;
         private DataGridView dataGridView5;
         private FlowLayoutPanel flowLayoutPanel5;
-        private Button btnAddSale;
-        private Button btnRefreshSale;
-        private Button btnPrintCheck;
+        private Button btnAddPurchase;
+        private Button btnRefreshPurchase;
 
         private TableLayoutPanel tableLayoutPanel6;
         private DataGridView dataGridView6;
         private FlowLayoutPanel flowLayoutPanel6;
+        private Button btnAddSale;
+        private Button btnRefreshSale;
+        private Button btnPrintCheck;
+
+        private TableLayoutPanel tableLayoutPanel7;
+        private DataGridView dataGridView7;
+        private FlowLayoutPanel flowLayoutPanel7;
         private Button btnReportStock;
         private Button btnReportSales;
         private Button btnReportPurchases;
