@@ -202,6 +202,8 @@ namespace Apple
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            if (DesignMode || LicenseManager.UsageMode == LicenseUsageMode.Designtime)
+                return;
             DatabaseManager.Initialize();
 
             var allGrids = new[] { dgvProducts, dgvCategories, dgvSuppliers, dgvPurchases, dgvSales, dgvReports };
