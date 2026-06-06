@@ -14,7 +14,6 @@ namespace Apple
         private static readonly string DbFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Apple");
         private static readonly string DbPath = Path.Combine(DbFolder, "apple.db");
-
         public static string ConnectionString => $"Data Source={DbPath}";
 
         /// <summary>
@@ -55,7 +54,6 @@ namespace Apple
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         Name TEXT NOT NULL UNIQUE
                     );
-
                     CREATE TABLE IF NOT EXISTS Suppliers (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         Name TEXT NOT NULL,
@@ -64,7 +62,6 @@ namespace Apple
                         Email TEXT,
                         Address TEXT
                     );
-
                     CREATE TABLE IF NOT EXISTS Customers (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         Name TEXT NOT NULL,
@@ -73,7 +70,6 @@ namespace Apple
                         Email TEXT,
                         Address TEXT
                     );
-
                     CREATE TABLE IF NOT EXISTS Products (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         Name TEXT NOT NULL,
@@ -83,7 +79,6 @@ namespace Apple
                         StockQuantity INTEGER NOT NULL DEFAULT 0,
                         FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE SET NULL
                     );
-
                     CREATE TABLE IF NOT EXISTS Purchases (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         ProductId INTEGER NOT NULL,
@@ -94,7 +89,6 @@ namespace Apple
                         FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE,
                         FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id) ON DELETE CASCADE
                     );
-
                     CREATE TABLE IF NOT EXISTS Sales (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         CustomerId INTEGER,
@@ -103,7 +97,6 @@ namespace Apple
                         TotalAmount REAL NOT NULL DEFAULT 0,
                         FOREIGN KEY (CustomerId) REFERENCES Customers(Id) ON DELETE SET NULL
                     );
-
                     CREATE TABLE IF NOT EXISTS SaleItems (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         SaleId INTEGER NOT NULL,
@@ -128,16 +121,13 @@ namespace Apple
             if (count > 0) return;
 
             Execute(connection, "INSERT INTO Categories (Name) VALUES ('Смартфоны'), ('Ноутбуки'), ('Аксессуары');");
-
-            Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES 
+            Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES
                 ('ТехноОпт', 'Иванов И.И.', '+7-900-111-22-33', 'info@technoopt.ru', 'г. Москва, ул. Складская 1'),
                 ('МегаСнаб', 'Петров П.П.', '+7-900-222-33-44', 'mega@snab.ru', 'г. Санкт-Петербург, пр. Невский 50');");
-
-            Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES 
+            Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
                 ('ООО Ромашка', 'Оптовый', '+7-900-333-44-55', 'info@romashka.ru', 'г. Казань'),
                 ('Сидоров А.В.', 'Розничный', '+7-900-444-55-66', 'sidorov@mail.ru', 'г. Москва');");
-
-            Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) VALUES 
+            Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) VALUES
                 ('iPhone 15 Pro', 1, 75000, 95000, 10),
                 ('Samsung Galaxy S24', 1, 55000, 75000, 15),
                 ('MacBook Air M2', 2, 85000, 110000, 5),
@@ -154,13 +144,11 @@ namespace Apple
         }
 
         // ===================== CATEGORIES =====================
-
         public static DataTable GetCategories(string search = "")
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
             if (!string.IsNullOrWhiteSpace(search))
             {
                 cmd.CommandText = "SELECT Id AS 'ID', Name AS 'Название' FROM Categories WHERE Name LIKE @search ORDER BY Id;";
@@ -170,7 +158,6 @@ namespace Apple
             {
                 cmd.CommandText = "SELECT Id AS 'ID', Name AS 'Название' FROM Categories ORDER BY Id;";
             }
-
             return ExecuteDataTable(cmd);
         }
 
@@ -215,26 +202,23 @@ namespace Apple
         }
 
         // ===================== SUPPLIERS =====================
-
         public static DataTable GetSuppliers(string search = "")
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
             if (!string.IsNullOrWhiteSpace(search))
             {
-                cmd.CommandText = @"SELECT Id AS 'ID', Name AS 'Название', ContactPerson AS 'Контактное лицо', 
-                    Phone AS 'Телефон', Email AS 'Email', Address AS 'Адрес' 
+                cmd.CommandText = @"SELECT Id AS 'ID', Name AS 'Название', ContactPerson AS 'Контактное лицо',
+                    Phone AS 'Телефон', Email AS 'Email', Address AS 'Адрес'
                     FROM Suppliers WHERE Name LIKE @search OR ContactPerson LIKE @search ORDER BY Id;";
                 cmd.Parameters.AddWithValue("@search", $"%{search}%");
             }
             else
             {
-                cmd.CommandText = @"SELECT Id AS 'ID', Name AS 'Название', ContactPerson AS 'Контактное лицо', 
+                cmd.CommandText = @"SELECT Id AS 'ID', Name AS 'Название', ContactPerson AS 'Контактное лицо',
                     Phone AS 'Телефон', Email AS 'Email', Address AS 'Адрес' FROM Suppliers ORDER BY Id;";
             }
-
             return ExecuteDataTable(cmd);
         }
 
@@ -252,7 +236,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) 
+            cmd.CommandText = @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address)
                 VALUES (@name, @contact, @phone, @email, @address);";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@contact", (object?)contactPerson ?? DBNull.Value);
@@ -267,7 +251,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"UPDATE Suppliers SET Name=@name, ContactPerson=@contact, Phone=@phone, 
+            cmd.CommandText = @"UPDATE Suppliers SET Name=@name, ContactPerson=@contact, Phone=@phone,
                 Email=@email, Address=@address WHERE Id=@id;";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@contact", (object?)contactPerson ?? DBNull.Value);
@@ -289,29 +273,23 @@ namespace Apple
         }
 
         // ===================== CUSTOMERS =====================
-
         public static DataTable GetCustomers(string search = "", string type = "")
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT Id AS 'ID', Name AS 'Имя', Type AS 'Тип', Phone AS 'Телефон', 
+            string sql = @"SELECT Id AS 'ID', Name AS 'Имя', Type AS 'Тип', Phone AS 'Телефон',
                 Email AS 'Email', Address AS 'Адрес' FROM Customers WHERE 1=1";
-
             if (!string.IsNullOrWhiteSpace(search))
                 sql += " AND (Name LIKE @search OR Phone LIKE @search)";
             if (!string.IsNullOrWhiteSpace(type) && type != "Все")
                 sql += " AND Type = @type";
-
             sql += " ORDER BY Id;";
             cmd.CommandText = sql;
-
             if (!string.IsNullOrWhiteSpace(search))
                 cmd.Parameters.AddWithValue("@search", $"%{search}%");
             if (!string.IsNullOrWhiteSpace(type) && type != "Все")
                 cmd.Parameters.AddWithValue("@type", type);
-
             return ExecuteDataTable(cmd);
         }
 
@@ -329,7 +307,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Customers (Name, Type, Phone, Email, Address) 
+            cmd.CommandText = @"INSERT INTO Customers (Name, Type, Phone, Email, Address)
                 VALUES (@name, @type, @phone, @email, @address);";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@type", type);
@@ -344,7 +322,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"UPDATE Customers SET Name=@name, Type=@type, Phone=@phone, 
+            cmd.CommandText = @"UPDATE Customers SET Name=@name, Type=@type, Phone=@phone,
                 Email=@email, Address=@address WHERE Id=@id;";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@type", type);
@@ -366,17 +344,14 @@ namespace Apple
         }
 
         // ===================== PRODUCTS =====================
-
         public static DataTable GetProducts(string search = "", decimal? minPrice = null, decimal? maxPrice = null, int? categoryId = null)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT p.Id AS 'ID', p.Name AS 'Название', c.Name AS 'Категория', 
-                p.PurchasePrice AS 'Закуп. цена', p.SalePrice AS 'Цена продажи', p.StockQuantity AS 'Остаток' 
+            string sql = @"SELECT p.Id AS 'ID', p.Name AS 'Название', c.Name AS 'Категория',
+                p.PurchasePrice AS 'Закуп. цена', p.SalePrice AS 'Цена продажи', p.StockQuantity AS 'Остаток'
                 FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE 1=1";
-
             if (!string.IsNullOrWhiteSpace(search))
                 sql += " AND p.Name LIKE @search";
             if (minPrice.HasValue)
@@ -385,10 +360,8 @@ namespace Apple
                 sql += " AND p.SalePrice <= @maxPrice";
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-
             sql += " ORDER BY p.Id;";
             cmd.CommandText = sql;
-
             if (!string.IsNullOrWhiteSpace(search))
                 cmd.Parameters.AddWithValue("@search", $"%{search}%");
             if (minPrice.HasValue)
@@ -397,7 +370,6 @@ namespace Apple
                 cmd.Parameters.AddWithValue("@maxPrice", (double)maxPrice.Value);
             if (categoryId.HasValue && categoryId.Value > 0)
                 cmd.Parameters.AddWithValue("@categoryId", categoryId.Value);
-
             return ExecuteDataTable(cmd);
         }
 
@@ -424,7 +396,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) 
+            cmd.CommandText = @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity)
                 VALUES (@name, @categoryId, @purchasePrice, @salePrice, @stock);";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@categoryId", categoryId.HasValue ? (object)categoryId.Value : DBNull.Value);
@@ -439,7 +411,7 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"UPDATE Products SET Name=@name, CategoryId=@categoryId, PurchasePrice=@purchasePrice, 
+            cmd.CommandText = @"UPDATE Products SET Name=@name, CategoryId=@categoryId, PurchasePrice=@purchasePrice,
                 SalePrice=@salePrice, StockQuantity=@stock WHERE Id=@id;";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@categoryId", categoryId.HasValue ? (object)categoryId.Value : DBNull.Value);
@@ -461,21 +433,18 @@ namespace Apple
         }
 
         // ===================== PURCHASES =====================
-
         public static DataTable GetPurchases(string search = "", int? supplierId = null, DateTime? dateFrom = null, DateTime? dateTo = null)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT pu.Id AS 'ID', p.Name AS 'Товар', s.Name AS 'Поставщик', 
-                pu.Quantity AS 'Количество', pu.PurchasePrice AS 'Цена', 
+            string sql = @"SELECT pu.Id AS 'ID', p.Name AS 'Товар', s.Name AS 'Поставщик',
+                pu.Quantity AS 'Количество', pu.PurchasePrice AS 'Цена',
                 (pu.Quantity * pu.PurchasePrice) AS 'Сумма',
                 pu.PurchaseDate AS 'Дата'
-                FROM Purchases pu 
-                JOIN Products p ON pu.ProductId = p.Id 
+                FROM Purchases pu
+                JOIN Products p ON pu.ProductId = p.Id
                 JOIN Suppliers s ON pu.SupplierId = s.Id WHERE 1=1";
-
             if (!string.IsNullOrWhiteSpace(search))
                 sql += " AND (p.Name LIKE @search OR s.Name LIKE @search)";
             if (supplierId.HasValue && supplierId.Value > 0)
@@ -484,10 +453,8 @@ namespace Apple
                 sql += " AND date(pu.PurchaseDate) >= date(@dateFrom)";
             if (dateTo.HasValue)
                 sql += " AND date(pu.PurchaseDate) <= date(@dateTo)";
-
             sql += " ORDER BY pu.Id DESC;";
             cmd.CommandText = sql;
-
             if (!string.IsNullOrWhiteSpace(search))
                 cmd.Parameters.AddWithValue("@search", $"%{search}%");
             if (supplierId.HasValue && supplierId.Value > 0)
@@ -496,7 +463,6 @@ namespace Apple
                 cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
             if (dateTo.HasValue)
                 cmd.Parameters.AddWithValue("@dateTo", dateTo.Value.ToString("yyyy-MM-dd"));
-
             return ExecuteDataTable(cmd);
         }
 
@@ -505,12 +471,11 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var transaction = connection.BeginTransaction();
-
             try
             {
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = transaction;
-                cmd.CommandText = @"INSERT INTO Purchases (ProductId, SupplierId, Quantity, PurchasePrice, PurchaseDate) 
+                cmd.CommandText = @"INSERT INTO Purchases (ProductId, SupplierId, Quantity, PurchasePrice, PurchaseDate)
                     VALUES (@productId, @supplierId, @quantity, @price, @date);";
                 cmd.Parameters.AddWithValue("@productId", productId);
                 cmd.Parameters.AddWithValue("@supplierId", supplierId);
@@ -546,7 +511,6 @@ namespace Apple
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
-
             using var selectCmd = connection.CreateCommand();
             selectCmd.CommandText = "SELECT ProductId, Quantity FROM Purchases WHERE Id = @id;";
             selectCmd.Parameters.AddWithValue("@id", id);
@@ -585,18 +549,15 @@ namespace Apple
         }
 
         // ===================== SALES =====================
-
         public static DataTable GetSales(string search = "", string status = "", DateTime? dateFrom = null, DateTime? dateTo = null)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT s.Id AS 'ID', 
+            string sql = @"SELECT s.Id AS 'ID',
                 COALESCE(c.Name, 'Без покупателя') AS 'Покупатель',
                 s.SaleDate AS 'Дата', s.Status AS 'Статус', s.TotalAmount AS 'Сумма'
                 FROM Sales s LEFT JOIN Customers c ON s.CustomerId = c.Id WHERE 1=1";
-
             if (!string.IsNullOrWhiteSpace(search))
                 sql += " AND (c.Name LIKE @search OR CAST(s.Id AS TEXT) LIKE @search)";
             if (!string.IsNullOrWhiteSpace(status) && status != "Все")
@@ -605,10 +566,8 @@ namespace Apple
                 sql += " AND date(s.SaleDate) >= date(@dateFrom)";
             if (dateTo.HasValue)
                 sql += " AND date(s.SaleDate) <= date(@dateTo)";
-
             sql += " ORDER BY s.Id DESC;";
             cmd.CommandText = sql;
-
             if (!string.IsNullOrWhiteSpace(search))
                 cmd.Parameters.AddWithValue("@search", $"%{search}%");
             if (!string.IsNullOrWhiteSpace(status) && status != "Все")
@@ -617,7 +576,6 @@ namespace Apple
                 cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
             if (dateTo.HasValue)
                 cmd.Parameters.AddWithValue("@dateTo", dateTo.Value.ToString("yyyy-MM-dd"));
-
             return ExecuteDataTable(cmd);
         }
 
@@ -626,27 +584,37 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var transaction = connection.BeginTransaction();
-
             try
             {
-                foreach (var item in items)
+                bool isCompleted = (status == "Завершена");
+
+                // 1. Проверка остатков ТОЛЬКО для завершенных продаж
+                if (isCompleted)
                 {
-                    using var checkCmd = connection.CreateCommand();
-                    checkCmd.Transaction = transaction;
-                    checkCmd.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
-                    checkCmd.Parameters.AddWithValue("@id", item.ProductId);
-                    var stock = Convert.ToInt32(checkCmd.ExecuteScalar());
-                    if (stock < item.Quantity)
-                        throw new InvalidOperationException($"Недостаточно товара (ID: {item.ProductId}). В наличии: {stock}, требуется: {item.Quantity}");
+                    foreach (var item in items)
+                    {
+                        using var checkCmd = connection.CreateCommand();
+                        checkCmd.Transaction = transaction;
+                        checkCmd.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
+                        checkCmd.Parameters.AddWithValue("@id", item.ProductId);
+                        var stock = Convert.ToInt32(checkCmd.ExecuteScalar());
+                        if (stock < item.Quantity)
+                            throw new InvalidOperationException($"Недостаточно товара (ID: {item.ProductId}). В наличии: {stock}, требуется: {item.Quantity}");
+                    }
                 }
 
+                // 2. Считаем сумму только для завершенных
                 decimal total = 0;
-                foreach (var item in items)
-                    total += item.Price * item.Quantity;
+                if (isCompleted)
+                {
+                    foreach (var item in items)
+                        total += item.Price * item.Quantity;
+                }
 
+                // 3. Создаем запись о продаже
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = transaction;
-                cmd.CommandText = @"INSERT INTO Sales (CustomerId, SaleDate, Status, TotalAmount) 
+                cmd.CommandText = @"INSERT INTO Sales (CustomerId, SaleDate, Status, TotalAmount)
                     VALUES (@customerId, @date, @status, @total); SELECT last_insert_rowid();";
                 cmd.Parameters.AddWithValue("@customerId", customerId.HasValue ? (object)customerId.Value : DBNull.Value);
                 cmd.Parameters.AddWithValue("@date", saleDate.ToString("yyyy-MM-dd"));
@@ -654,24 +622,28 @@ namespace Apple
                 cmd.Parameters.AddWithValue("@total", (double)total);
                 int saleId = Convert.ToInt32(cmd.ExecuteScalar());
 
-                foreach (var item in items)
+                // 4. Списываем товар и создаем позиции ТОЛЬКО если продажа Завершена
+                if (isCompleted)
                 {
-                    using var itemCmd = connection.CreateCommand();
-                    itemCmd.Transaction = transaction;
-                    itemCmd.CommandText = @"INSERT INTO SaleItems (SaleId, ProductId, Quantity, Price) 
-                        VALUES (@saleId, @productId, @quantity, @price);";
-                    itemCmd.Parameters.AddWithValue("@saleId", saleId);
-                    itemCmd.Parameters.AddWithValue("@productId", item.ProductId);
-                    itemCmd.Parameters.AddWithValue("@quantity", item.Quantity);
-                    itemCmd.Parameters.AddWithValue("@price", (double)item.Price);
-                    itemCmd.ExecuteNonQuery();
+                    foreach (var item in items)
+                    {
+                        using var itemCmd = connection.CreateCommand();
+                        itemCmd.Transaction = transaction;
+                        itemCmd.CommandText = @"INSERT INTO SaleItems (SaleId, ProductId, Quantity, Price)
+                            VALUES (@saleId, @productId, @quantity, @price);";
+                        itemCmd.Parameters.AddWithValue("@saleId", saleId);
+                        itemCmd.Parameters.AddWithValue("@productId", item.ProductId);
+                        itemCmd.Parameters.AddWithValue("@quantity", item.Quantity);
+                        itemCmd.Parameters.AddWithValue("@price", (double)item.Price);
+                        itemCmd.ExecuteNonQuery();
 
-                    using var stockCmd = connection.CreateCommand();
-                    stockCmd.Transaction = transaction;
-                    stockCmd.CommandText = "UPDATE Products SET StockQuantity = StockQuantity - @quantity WHERE Id = @id;";
-                    stockCmd.Parameters.AddWithValue("@quantity", item.Quantity);
-                    stockCmd.Parameters.AddWithValue("@id", item.ProductId);
-                    stockCmd.ExecuteNonQuery();
+                        using var stockCmd = connection.CreateCommand();
+                        stockCmd.Transaction = transaction;
+                        stockCmd.CommandText = "UPDATE Products SET StockQuantity = StockQuantity - @quantity WHERE Id = @id;";
+                        stockCmd.Parameters.AddWithValue("@quantity", item.Quantity);
+                        stockCmd.Parameters.AddWithValue("@id", item.ProductId);
+                        stockCmd.ExecuteNonQuery();
+                    }
                 }
 
                 transaction.Commit();
@@ -689,36 +661,41 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var transaction = connection.BeginTransaction();
-
             try
             {
-                // Получаем позиции продажи для возврата товара
-                using var cmdSelect = connection.CreateCommand();
-                cmdSelect.Transaction = transaction;
-                cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
-                cmdSelect.Parameters.AddWithValue("@saleId", id);
+                // Узнаем статус продажи
+                using var cmdStatus = connection.CreateCommand();
+                cmdStatus.Transaction = transaction;
+                cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
+                cmdStatus.Parameters.AddWithValue("@id", id);
+                string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
 
-                var items = new List<(int productId, int quantity)>();
-                using (var reader = cmdSelect.ExecuteReader())
+                // Возвращаем товар на склад ТОЛЬКО если удаляем Завершенную продажу
+                if (status == "Завершена")
                 {
-                    while (reader.Read())
+                    using var cmdSelect = connection.CreateCommand();
+                    cmdSelect.Transaction = transaction;
+                    cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
+                    cmdSelect.Parameters.AddWithValue("@saleId", id);
+
+                    using (var reader = cmdSelect.ExecuteReader())
                     {
-                        items.Add((reader.GetInt32(0), reader.GetInt32(1)));
+                        while (reader.Read())
+                        {
+                            int productId = reader.GetInt32(0);
+                            int quantity = reader.GetInt32(1);
+
+                            using var cmdUpdate = connection.CreateCommand();
+                            cmdUpdate.Transaction = transaction;
+                            cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
+                            cmdUpdate.Parameters.AddWithValue("@quantity", quantity);
+                            cmdUpdate.Parameters.AddWithValue("@id", productId);
+                            cmdUpdate.ExecuteNonQuery();
+                        }
                     }
                 }
 
-                // Возвращаем остатки
-                foreach (var (productId, quantity) in items)
-                {
-                    using var cmdUpdate = connection.CreateCommand();
-                    cmdUpdate.Transaction = transaction;
-                    cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
-                    cmdUpdate.Parameters.AddWithValue("@quantity", quantity);
-                    cmdUpdate.Parameters.AddWithValue("@id", productId);
-                    cmdUpdate.ExecuteNonQuery();
-                }
-
-                // Удаляем продажу (SaleItems удалятся каскадно)
+                // Удаляем саму продажу (SaleItems удалятся каскадно)
                 using var cmdDelete = connection.CreateCommand();
                 cmdDelete.Transaction = transaction;
                 cmdDelete.CommandText = "DELETE FROM Sales WHERE Id = @id;";
@@ -734,12 +711,67 @@ namespace Apple
             }
         }
 
+        /// <summary>
+        /// Оформляет возврат по завершенной продаже: возвращает товар на склад и меняет статус.
+        /// </summary>
+        public static void ReturnSale(int id)
+        {
+            using var connection = new SqliteConnection(ConnectionString);
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var cmdStatus = connection.CreateCommand();
+                cmdStatus.Transaction = transaction;
+                cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
+                cmdStatus.Parameters.AddWithValue("@id", id);
+                string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
+
+                if (status != "Завершена")
+                    throw new InvalidOperationException("Оформить возврат можно только для завершенной продажи.");
+
+                using var cmdSelect = connection.CreateCommand();
+                cmdSelect.Transaction = transaction;
+                cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
+                cmdSelect.Parameters.AddWithValue("@saleId", id);
+
+                using (var reader = cmdSelect.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        int productId = reader.GetInt32(0);
+                        int quantity = reader.GetInt32(1);
+
+                        using var cmdUpdate = connection.CreateCommand();
+                        cmdUpdate.Transaction = transaction;
+                        cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
+                        cmdUpdate.Parameters.AddWithValue("@quantity", quantity);
+                        cmdUpdate.Parameters.AddWithValue("@id", productId);
+                        cmdUpdate.ExecuteNonQuery();
+                    }
+                }
+
+                using var cmdUpdateStatus = connection.CreateCommand();
+                cmdUpdateStatus.Transaction = transaction;
+                cmdUpdateStatus.CommandText = "UPDATE Sales SET Status = 'Возврат' WHERE Id = @id;";
+                cmdUpdateStatus.Parameters.AddWithValue("@id", id);
+                cmdUpdateStatus.ExecuteNonQuery();
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
         public static DataTable GetSaleItems(int saleId)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"SELECT p.Name AS 'Товар', si.Quantity AS 'Количество', 
+            cmd.CommandText = @"SELECT p.Name AS 'Товар', si.Quantity AS 'Количество',
                 si.Price AS 'Цена', (si.Quantity * si.Price) AS 'Сумма'
                 FROM SaleItems si JOIN Products p ON si.ProductId = p.Id WHERE si.SaleId = @saleId;";
             cmd.Parameters.AddWithValue("@saleId", saleId);
@@ -747,27 +779,21 @@ namespace Apple
         }
 
         // ===================== REPORTS =====================
-
         public static DataTable GetStockReport(int? categoryId = null)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT p.Name AS 'Товар', c.Name AS 'Категория', 
+            string sql = @"SELECT p.Name AS 'Товар', c.Name AS 'Категория',
                 p.StockQuantity AS 'Остаток', p.PurchasePrice AS 'Закуп. цена',
                 p.SalePrice AS 'Цена продажи', (p.StockQuantity * p.SalePrice) AS 'Стоимость остатков'
                 FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE 1=1";
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-
             sql += " ORDER BY p.Name;";
             cmd.CommandText = sql;
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 cmd.Parameters.AddWithValue("@categoryId", categoryId.Value);
-
             return ExecuteDataTable(cmd);
         }
 
@@ -776,25 +802,20 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT s.SaleDate AS 'Дата', p.Name AS 'Товар', si.Quantity AS 'Кол-во', 
+            string sql = @"SELECT s.SaleDate AS 'Дата', p.Name AS 'Товар', si.Quantity AS 'Кол-во',
                 si.Price AS 'Цена', (si.Quantity * si.Price) AS 'Сумма', s.Status AS 'Статус'
-                FROM Sales s 
-                JOIN SaleItems si ON s.Id = si.SaleId 
-                JOIN Products p ON si.ProductId = p.Id 
+                FROM Sales s
+                JOIN SaleItems si ON s.Id = si.SaleId
+                JOIN Products p ON si.ProductId = p.Id
                 WHERE date(s.SaleDate) BETWEEN date(@from) AND date(@to)";
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-
             sql += " ORDER BY s.SaleDate DESC;";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("@from", dateFrom.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@to", dateTo.ToString("yyyy-MM-dd"));
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 cmd.Parameters.AddWithValue("@categoryId", categoryId.Value);
-
             return ExecuteDataTable(cmd);
         }
 
@@ -803,26 +824,21 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
             string sql = @"SELECT pu.PurchaseDate AS 'Дата', p.Name AS 'Товар', s.Name AS 'Поставщик',
-                pu.Quantity AS 'Кол-во', pu.PurchasePrice AS 'Цена', 
+                pu.Quantity AS 'Кол-во', pu.PurchasePrice AS 'Цена',
                 (pu.Quantity * pu.PurchasePrice) AS 'Сумма'
-                FROM Purchases pu 
-                JOIN Products p ON pu.ProductId = p.Id 
-                JOIN Suppliers s ON pu.SupplierId = s.Id 
+                FROM Purchases pu
+                JOIN Products p ON pu.ProductId = p.Id
+                JOIN Suppliers s ON pu.SupplierId = s.Id
                 WHERE date(pu.PurchaseDate) BETWEEN date(@from) AND date(@to)";
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-
             sql += " ORDER BY pu.PurchaseDate DESC;";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("@from", dateFrom.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@to", dateTo.ToString("yyyy-MM-dd"));
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 cmd.Parameters.AddWithValue("@categoryId", categoryId.Value);
-
             return ExecuteDataTable(cmd);
         }
 
@@ -831,28 +847,23 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-
-            string sql = @"SELECT p.Name AS 'Товар', 
+            string sql = @"SELECT p.Name AS 'Товар',
                 SUM(si.Quantity) AS 'Продано шт.',
                 SUM(si.Quantity * si.Price) AS 'Выручка',
                 SUM(si.Quantity * p.PurchasePrice) AS 'Себестоимость',
                 SUM(si.Quantity * (si.Price - p.PurchasePrice)) AS 'Прибыль'
-                FROM Sales s 
-                JOIN SaleItems si ON s.Id = si.SaleId 
-                JOIN Products p ON si.ProductId = p.Id 
+                FROM Sales s
+                JOIN SaleItems si ON s.Id = si.SaleId
+                JOIN Products p ON si.ProductId = p.Id
                 WHERE date(s.SaleDate) BETWEEN date(@from) AND date(@to) AND s.Status = 'Завершена'";
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-
             sql += " GROUP BY p.Id, p.Name ORDER BY SUM(si.Quantity * (si.Price - p.PurchasePrice)) DESC;";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("@from", dateFrom.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@to", dateTo.ToString("yyyy-MM-dd"));
-
             if (categoryId.HasValue && categoryId.Value > 0)
                 cmd.Parameters.AddWithValue("@categoryId", categoryId.Value);
-
             return ExecuteDataTable(cmd);
         }
     }
