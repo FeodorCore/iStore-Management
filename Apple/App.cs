@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -23,16 +24,13 @@ namespace Apple
             InitializeApp();
         }
 
-        /// <summary>
-        /// Создаёт DataTable для ComboBox без ограничений NOT NULL из SQLite.
-        /// Это решает проблему ArgumentOutOfRangeException при InsertAt.
-        /// </summary>
         private static DataTable CreateSafeComboTable(DataTable source, int defaultId, string defaultName)
         {
             var result = new DataTable();
             result.Columns.Add("Id", typeof(int));
             result.Columns.Add("Name", typeof(string));
             result.Rows.Add(defaultId, defaultName);
+
             if (source != null)
             {
                 foreach (DataRow row in source.Rows)
@@ -59,10 +57,8 @@ namespace Apple
                 return;
             }
 
-            // Подписки на события
             tabControl1.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
 
-            // Товары
             button1.Click += BtnAddProduct_Click;
             button2.Click += BtnEditProduct_Click;
             button3.Click += BtnDeleteProduct_Click;
@@ -72,21 +68,18 @@ namespace Apple
             comboBox1.SelectedIndexChanged += ProductsSearch_Changed;
             dataGridView1.CellDoubleClick += DataGridView_Products_DoubleClick;
 
-            // Категории
             btnAddCategory.Click += BtnAddCategory_Click;
             btnEditCategory.Click += BtnEditCategory_Click;
             btnDeleteCategory.Click += BtnDeleteCategory_Click;
             textBoxCatSearch.TextChanged += CategoriesSearch_Changed;
             dataGridView2.CellDoubleClick += DataGridView_Categories_DoubleClick;
 
-            // Поставщики
             btnAddSupplier.Click += BtnAddSupplier_Click;
             btnEditSupplier.Click += BtnEditSupplier_Click;
             btnDeleteSupplier.Click += BtnDeleteSupplier_Click;
             textBoxSupSearch.TextChanged += SuppliersSearch_Changed;
             dataGridView3.CellDoubleClick += DataGridView_Suppliers_DoubleClick;
 
-            // Покупатели
             btnAddCustomer.Click += BtnAddCustomer_Click;
             btnEditCustomer.Click += BtnEditCustomer_Click;
             btnDeleteCustomer.Click += BtnDeleteCustomer_Click;
@@ -94,7 +87,6 @@ namespace Apple
             comboBoxCustType.SelectedIndexChanged += CustomersSearch_Changed;
             dataGridView4.CellDoubleClick += DataGridView_Customers_DoubleClick;
 
-            // Закупки
             btnAddPurchase.Click += BtnAddPurchase_Click;
             btnEditPurchase.Click += BtnEditPurchase_Click;
             btnDeletePurchase.Click += BtnDeletePurchase_Click;
@@ -103,7 +95,6 @@ namespace Apple
             dateTimePickerPurFrom.ValueChanged += PurchasesSearch_Changed;
             dateTimePickerPurTo.ValueChanged += PurchasesSearch_Changed;
 
-            // Продажи
             btnAddSale.Click += BtnAddSale_Click;
             btnEditSale.Click += BtnEditSale_Click;
             btnDeleteSale.Click += BtnDeleteSale_Click;
@@ -113,14 +104,16 @@ namespace Apple
             dateTimePickerSaleFrom.ValueChanged += SalesSearch_Changed;
             dateTimePickerSaleTo.ValueChanged += SalesSearch_Changed;
 
-            // Отчёты
             btnReportStock.Click += BtnReportStock_Click;
             btnReportSales.Click += BtnReportSales_Click;
             btnReportPurchases.Click += BtnReportPurchases_Click;
             btnReportProfit.Click += BtnReportProfit_Click;
             btnExportExcel.Click += BtnExportExcel_Click;
 
-            // Первоначальная загрузка
+            // ⚡ ПОДПИСКА НА DataError — подавляем стандартное окно WinForms
+            // при конфликте типов в dataGridView7 (например, Double vs Image)
+            dataGridView7.DataError += DataGridView7_DataError;
+
             LoadProducts();
             LoadCategoryCombo();
             LoadCustomerTypeCombo();
@@ -163,6 +156,7 @@ namespace Apple
                 int? categoryId = null;
                 if (comboBox1.SelectedItem is DataRowView drv && drv["Id"] != DBNull.Value)
                     categoryId = Convert.ToInt32(drv["Id"]);
+
                 dataGridView1.DataSource = DatabaseHelper.GetProducts(search, minPrice, maxPrice, categoryId);
             }
             catch (Exception ex)
@@ -177,15 +171,12 @@ namespace Apple
             try
             {
                 var sourceCategories = DatabaseHelper.GetCategoriesForCombo();
-
-                // Для comboBox1 (фильтр товаров)
                 var dt1 = CreateSafeComboTable(sourceCategories, 0, "Все");
                 comboBox1.DataSource = dt1;
                 comboBox1.DisplayMember = "Name";
                 comboBox1.ValueMember = "Id";
                 if (comboBox1.Items.Count > 0) comboBox1.SelectedIndex = 0;
 
-                // Для comboBoxRepCategory (фильтр отчётов)
                 var dt2 = CreateSafeComboTable(sourceCategories, 0, "Все");
                 comboBoxRepCategory.DataSource = dt2;
                 comboBoxRepCategory.DisplayMember = "Name";
@@ -199,15 +190,11 @@ namespace Apple
             }
         }
 
-        private void ProductsSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadProducts();
-        }
+        private void ProductsSearch_Changed(object? sender, EventArgs e) => LoadProducts();
 
         private void DataGridView_Products_DoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-                BtnEditProduct_Click(sender, EventArgs.Empty);
+            if (e.RowIndex >= 0) BtnEditProduct_Click(sender, EventArgs.Empty);
         }
 
         private void BtnAddProduct_Click(object? sender, EventArgs e)
@@ -218,7 +205,7 @@ namespace Apple
                 try
                 {
                     DatabaseHelper.AddProduct(form.ProductName, form.CategoryId,
-                        form.PurchasePrice, form.SalePrice, form.StockQuantity);
+                        form.PurchasePrice, form.SalePrice, 0);
                     LoadProducts();
                     LoadCategoryCombo();
                 }
@@ -235,22 +222,23 @@ namespace Apple
             if (dataGridView1.CurrentRow == null) return;
             var row = dataGridView1.CurrentRow;
             if (row.Cells["colProdId"].Value == null) return;
+
             int id = Convert.ToInt32(row.Cells["colProdId"].Value);
+            int currentStock = DatabaseHelper.GetProductStock(id);
 
             using var form = new ProductForm();
             form.LoadProduct(id,
                 row.Cells["colProdName"].Value?.ToString() ?? "",
                 GetCategoryIdFromName(row.Cells["colProdCategory"].Value?.ToString()),
                 Convert.ToDecimal(row.Cells["colProdPurchasePrice"].Value ?? 0),
-                Convert.ToDecimal(row.Cells["colProdSalePrice"].Value ?? 0),
-                Convert.ToInt32(row.Cells["colProdStock"].Value ?? 0));
+                Convert.ToDecimal(row.Cells["colProdSalePrice"].Value ?? 0));
 
             if (form.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     DatabaseHelper.UpdateProduct(id, form.ProductName, form.CategoryId,
-                        form.PurchasePrice, form.SalePrice, form.StockQuantity);
+                        form.PurchasePrice, form.SalePrice, currentStock);
                     LoadProducts();
                 }
                 catch (Exception ex)
@@ -265,10 +253,10 @@ namespace Apple
         {
             if (dataGridView1.CurrentRow == null) return;
             if (dataGridView1.CurrentRow.Cells["colProdId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView1.CurrentRow.Cells["colProdId"].Value);
 
+            int id = Convert.ToInt32(dataGridView1.CurrentRow.Cells["colProdId"].Value);
             if (MessageBox.Show("Удалить выбранный товар?", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -314,15 +302,11 @@ namespace Apple
             }
         }
 
-        private void CategoriesSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadCategories();
-        }
+        private void CategoriesSearch_Changed(object? sender, EventArgs e) => LoadCategories();
 
         private void DataGridView_Categories_DoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-                BtnEditCategory_Click(sender, EventArgs.Empty);
+            if (e.RowIndex >= 0) BtnEditCategory_Click(sender, EventArgs.Empty);
         }
 
         private void BtnAddCategory_Click(object? sender, EventArgs e)
@@ -348,9 +332,9 @@ namespace Apple
         {
             if (dataGridView2.CurrentRow == null) return;
             if (dataGridView2.CurrentRow.Cells["colCatId"].Value == null) return;
+
             int id = Convert.ToInt32(dataGridView2.CurrentRow.Cells["colCatId"].Value);
             string currentName = dataGridView2.CurrentRow.Cells["colCatName"].Value?.ToString() ?? "";
-
             string? name = ShowInputDialog("Редактировать категорию", "Название категории:", currentName);
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -372,10 +356,10 @@ namespace Apple
         {
             if (dataGridView2.CurrentRow == null) return;
             if (dataGridView2.CurrentRow.Cells["colCatId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView2.CurrentRow.Cells["colCatId"].Value);
 
+            int id = Convert.ToInt32(dataGridView2.CurrentRow.Cells["colCatId"].Value);
             if (MessageBox.Show("Удалить выбранную категорию?", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -424,15 +408,11 @@ namespace Apple
             }
         }
 
-        private void SuppliersSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadSuppliers();
-        }
+        private void SuppliersSearch_Changed(object? sender, EventArgs e) => LoadSuppliers();
 
         private void DataGridView_Suppliers_DoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-                BtnEditSupplier_Click(sender, EventArgs.Empty);
+            if (e.RowIndex >= 0) BtnEditSupplier_Click(sender, EventArgs.Empty);
         }
 
         private void BtnAddSupplier_Click(object? sender, EventArgs e)
@@ -459,8 +439,8 @@ namespace Apple
         {
             if (dataGridView3.CurrentRow == null) return;
             if (dataGridView3.CurrentRow.Cells["colSupId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView3.CurrentRow.Cells["colSupId"].Value);
 
+            int id = Convert.ToInt32(dataGridView3.CurrentRow.Cells["colSupId"].Value);
             using var form = new SupplierForm();
             form.LoadData(
                 dataGridView3.CurrentRow.Cells["colSupName"].Value?.ToString() ?? "",
@@ -490,10 +470,10 @@ namespace Apple
         {
             if (dataGridView3.CurrentRow == null) return;
             if (dataGridView3.CurrentRow.Cells["colSupId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView3.CurrentRow.Cells["colSupId"].Value);
 
+            int id = Convert.ToInt32(dataGridView3.CurrentRow.Cells["colSupId"].Value);
             if (MessageBox.Show("Удалить выбранного поставщика?", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -535,15 +515,11 @@ namespace Apple
             if (comboBoxCustType.Items.Count > 0) comboBoxCustType.SelectedIndex = 0;
         }
 
-        private void CustomersSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadCustomers();
-        }
+        private void CustomersSearch_Changed(object? sender, EventArgs e) => LoadCustomers();
 
         private void DataGridView_Customers_DoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-                BtnEditCustomer_Click(sender, EventArgs.Empty);
+            if (e.RowIndex >= 0) BtnEditCustomer_Click(sender, EventArgs.Empty);
         }
 
         private void BtnAddCustomer_Click(object? sender, EventArgs e)
@@ -569,8 +545,8 @@ namespace Apple
         {
             if (dataGridView4.CurrentRow == null) return;
             if (dataGridView4.CurrentRow.Cells["colCustId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView4.CurrentRow.Cells["colCustId"].Value);
 
+            int id = Convert.ToInt32(dataGridView4.CurrentRow.Cells["colCustId"].Value);
             using var form = new CustomerForm();
             form.LoadData(
                 dataGridView4.CurrentRow.Cells["colCustName"].Value?.ToString() ?? "",
@@ -599,10 +575,10 @@ namespace Apple
         {
             if (dataGridView4.CurrentRow == null) return;
             if (dataGridView4.CurrentRow.Cells["colCustId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView4.CurrentRow.Cells["colCustId"].Value);
 
+            int id = Convert.ToInt32(dataGridView4.CurrentRow.Cells["colCustId"].Value);
             if (MessageBox.Show("Удалить выбранного покупателя?", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -640,16 +616,31 @@ namespace Apple
             }
         }
 
-        private void PurchasesSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadPurchases();
-        }
+        private void PurchasesSearch_Changed(object? sender, EventArgs e) => LoadPurchases();
 
         private void BtnAddPurchase_Click(object? sender, EventArgs e)
         {
             using var form = new PurchaseForm();
             if (form.ShowDialog() == DialogResult.OK)
             {
+                if (form.ProductId <= 0)
+                {
+                    MessageBox.Show("Выберите товар из списка!", "Внимание",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (form.SupplierId <= 0)
+                {
+                    MessageBox.Show("Выберите поставщика из списка!", "Внимание",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                if (form.Quantity <= 0)
+                {
+                    MessageBox.Show("Количество должно быть больше нуля!", "Внимание",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 try
                 {
                     DatabaseHelper.AddPurchase(form.ProductId, form.SupplierId,
@@ -669,7 +660,7 @@ namespace Apple
         {
             if (dataGridView5.CurrentRow == null) return;
             MessageBox.Show("Для редактирования закупки удалите текущую и создайте новую.\n" +
-                "Остатки будут автоматически скорректированы.", "Информация",
+                            "Остатки будут автоматически скорректированы.", "Информация",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -677,10 +668,10 @@ namespace Apple
         {
             if (dataGridView5.CurrentRow == null) return;
             if (dataGridView5.CurrentRow.Cells["colPurId"].Value == null) return;
-            int id = Convert.ToInt32(dataGridView5.CurrentRow.Cells["colPurId"].Value);
 
+            int id = Convert.ToInt32(dataGridView5.CurrentRow.Cells["colPurId"].Value);
             if (MessageBox.Show("Удалить закупку? Остаток товара будет скорректирован.", "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -720,14 +711,11 @@ namespace Apple
             comboBoxSaleStatus.Items.Add("Все");
             comboBoxSaleStatus.Items.Add("Завершена");
             comboBoxSaleStatus.Items.Add("Отменена");
-            comboBoxSaleStatus.Items.Add("Возврат"); // Оставляем для фильтрации в списке
+            comboBoxSaleStatus.Items.Add("Возврат");
             if (comboBoxSaleStatus.Items.Count > 0) comboBoxSaleStatus.SelectedIndex = 0;
         }
 
-        private void SalesSearch_Changed(object? sender, EventArgs e)
-        {
-            LoadSales();
-        }
+        private void SalesSearch_Changed(object? sender, EventArgs e) => LoadSales();
 
         private void BtnAddSale_Click(object? sender, EventArgs e)
         {
@@ -743,13 +731,27 @@ namespace Apple
                         return;
                     }
 
+                    foreach (var item in form.Items)
+                    {
+                        if (item.ProductId <= 0)
+                        {
+                            MessageBox.Show($"Ошибка: некорректный товар '{item.ProductName}' в списке.", "Ошибка",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                        if (item.Quantity <= 0)
+                        {
+                            MessageBox.Show($"Ошибка: количество товара '{item.ProductName}' должно быть больше 0.", "Ошибка",
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+
                     int saleId = DatabaseHelper.AddSale(form.CustomerId, form.SaleDate,
                         form.Status, form.Items);
-
                     LoadSales();
                     LoadProducts();
 
-                    // Печать чека только для завершенных продаж
                     if (form.Status == "Завершена" && form.Items.Count > 0)
                     {
                         _currentReceiptSaleId = saleId;
@@ -776,7 +778,7 @@ namespace Apple
             if (status == "Завершена")
             {
                 var result = MessageBox.Show(
-                    "Выберите действие:\n\n" +
+                    "Выберите действие:\n" +
                     "[Да] - Оформить ВОЗВРАТ (вернуть товар на склад, сменить статус)\n" +
                     "[Нет] - Удалить продажу (товар также вернется)\n" +
                     "[Отмена] - Закрыть окно",
@@ -791,11 +793,13 @@ namespace Apple
                         DatabaseHelper.ReturnSale(id);
                         LoadSales();
                         LoadProducts();
-                        MessageBox.Show("Возврат успешно оформлен! Товар возвращен на склад.", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Возврат успешно оформлен! Товар возвращен на склад.", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка возврата: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show($"Ошибка возврата: {ex.Message}", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
                 else if (result == DialogResult.No)
@@ -806,7 +810,7 @@ namespace Apple
             else if (status == "Отменена")
             {
                 if (MessageBox.Show("Удалить отмененную продажу? (Склад не изменится)", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     try
                     {
@@ -815,7 +819,8 @@ namespace Apple
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
@@ -843,7 +848,7 @@ namespace Apple
                 msg += "\nСклад не изменится (товар уже был возвращен ранее).";
 
             if (MessageBox.Show(msg, "Подтверждение",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -876,6 +881,7 @@ namespace Apple
 
             var printDoc = new PrintDocument();
             printDoc.PrintPage += PrintDoc_PrintPage;
+
             var preview = new PrintPreviewDialog
             {
                 Document = printDoc,
@@ -883,6 +889,7 @@ namespace Apple
                 Height = 600,
                 Text = "Предпросмотр чека"
             };
+
             try
             {
                 preview.ShowDialog();
@@ -901,13 +908,13 @@ namespace Apple
             var g = e.Graphics;
             float y = 20;
             float leftMargin = 20;
+
             var titleFont = new Font("Arial", 14, FontStyle.Bold);
             var headerFont = new Font("Arial", 10, FontStyle.Bold);
             var normalFont = new Font("Arial", 9);
 
             g.DrawString("=== ЧЕК ===", titleFont, Brushes.Black, leftMargin, y);
             y += 30;
-
             g.DrawString($"Чек №: {_currentReceiptSaleId}", normalFont, Brushes.Black, leftMargin, y);
             y += 18;
             g.DrawString($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}", normalFont, Brushes.Black, leftMargin, y);
@@ -957,11 +964,44 @@ namespace Apple
         #endregion
 
         #region Reports (Tab 7)
+        /// <summary>
+        /// ⚡ КЛЮЧЕВОЙ МЕТОД: очищает старые колонки dataGridView7 перед привязкой нового DataTable.
+        /// Предотвращает InvalidCastException (Double -> Image), когда грид пытается повторно
+        /// использовать старые колонки от другого отчёта.
+        /// </summary>
+        private void SetReportData(DataTable data)
+        {
+            dataGridView7.DataSource = null;
+            dataGridView7.Columns.Clear();
+            dataGridView7.DataSource = data;
+
+            // Автоматически форматируем денежные колонки (2 знака после запятой)
+            foreach (DataGridViewColumn col in dataGridView7.Columns)
+            {
+                string header = col.HeaderText.ToLower();
+                if (header.Contains("цена") || header.Contains("сумма") ||
+                    header.Contains("выручка") || header.Contains("себестоимость") ||
+                    header.Contains("прибыль") || header.Contains("стоимость"))
+                {
+                    col.DefaultCellStyle.Format = "N2";
+                }
+            }
+        }
+
+        /// <summary>
+        /// ⚡ Подавляем стандартное страшное окно WinForms "To replace this default dialog..."
+        /// при конфликтах форматирования ячеек в отчётах.
+        /// </summary>
+        private void DataGridView7_DataError(object? sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.ThrowException = false;
+        }
+
         private void LoadReports()
         {
             try
             {
-                dataGridView7.DataSource = DatabaseHelper.GetStockReport();
+                SetReportData(DatabaseHelper.GetStockReport());
             }
             catch (Exception ex)
             {
@@ -980,7 +1020,7 @@ namespace Apple
                     int val = Convert.ToInt32(drv["Id"]);
                     if (val > 0) categoryId = val;
                 }
-                dataGridView7.DataSource = DatabaseHelper.GetStockReport(categoryId);
+                SetReportData(DatabaseHelper.GetStockReport(categoryId));
             }
             catch (Exception ex)
             {
@@ -999,8 +1039,8 @@ namespace Apple
                     int val = Convert.ToInt32(drv["Id"]);
                     if (val > 0) categoryId = val;
                 }
-                dataGridView7.DataSource = DatabaseHelper.GetSalesReport(
-                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId);
+                SetReportData(DatabaseHelper.GetSalesReport(
+                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
             catch (Exception ex)
             {
@@ -1019,8 +1059,8 @@ namespace Apple
                     int val = Convert.ToInt32(drv["Id"]);
                     if (val > 0) categoryId = val;
                 }
-                dataGridView7.DataSource = DatabaseHelper.GetPurchasesReport(
-                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId);
+                SetReportData(DatabaseHelper.GetPurchasesReport(
+                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
             catch (Exception ex)
             {
@@ -1039,8 +1079,8 @@ namespace Apple
                     int val = Convert.ToInt32(drv["Id"]);
                     if (val > 0) categoryId = val;
                 }
-                dataGridView7.DataSource = DatabaseHelper.GetProfitReport(
-                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId);
+                SetReportData(DatabaseHelper.GetProfitReport(
+                    dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
             catch (Exception ex)
             {
@@ -1111,10 +1151,10 @@ namespace Apple
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out decimal result))
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal result))
                 return result;
             if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.CurrentCulture, out result))
+                    System.Globalization.CultureInfo.CurrentCulture, out result))
                 return result;
             return null;
         }
@@ -1150,7 +1190,6 @@ namespace Apple
         private readonly ComboBox _cmbCategory;
         private readonly NumericUpDown _nudPurchasePrice;
         private readonly NumericUpDown _nudSalePrice;
-        private readonly NumericUpDown _nudStock;
 
         public string ProductName => _txtName.Text.Trim();
         public int? CategoryId
@@ -1167,19 +1206,18 @@ namespace Apple
         }
         public decimal PurchasePrice => _nudPurchasePrice.Value;
         public decimal SalePrice => _nudSalePrice.Value;
-        public int StockQuantity => (int)_nudStock.Value;
 
         public ProductForm()
         {
             Text = "Товар";
             Width = 400;
-            Height = 320;
+            Height = 290;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
-            int top = 15;
 
+            int top = 15;
             Controls.Add(new Label { Text = "Название:", Left = 20, Top = top, AutoSize = true });
             _txtName = new TextBox { Left = 140, Top = top - 3, Width = 220 };
             Controls.Add(_txtName);
@@ -1213,11 +1251,6 @@ namespace Apple
             Controls.Add(new Label { Text = "Цена продажи:", Left = 20, Top = top, AutoSize = true });
             _nudSalePrice = new NumericUpDown { Left = 140, Top = top - 3, Width = 220, Maximum = 9999999, DecimalPlaces = 2 };
             Controls.Add(_nudSalePrice);
-            top += 35;
-
-            Controls.Add(new Label { Text = "Остаток:", Left = 20, Top = top, AutoSize = true });
-            _nudStock = new NumericUpDown { Left = 140, Top = top - 3, Width = 220, Maximum = 999999 };
-            Controls.Add(_nudStock);
             top += 40;
 
             var btnOk = new Button { Text = "OK", Left = 190, Top = top, Width = 80, DialogResult = DialogResult.OK };
@@ -1227,13 +1260,12 @@ namespace Apple
             CancelButton = btnCancel;
         }
 
-        public void LoadProduct(int id, string name, int? categoryId, decimal purchasePrice, decimal salePrice, int stock)
+        public void LoadProduct(int id, string name, int? categoryId, decimal purchasePrice, decimal salePrice)
         {
             Text = "Редактировать товар";
             _txtName.Text = name;
             _nudPurchasePrice.Value = purchasePrice;
             _nudSalePrice.Value = salePrice;
-            _nudStock.Value = stock;
 
             if (categoryId.HasValue)
             {
@@ -1272,8 +1304,8 @@ namespace Apple
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
-            int top = 15;
 
+            int top = 15;
             var labels = new[] { "Название:", "Контактное лицо:", "Телефон:", "Email:", "Адрес:" };
             var boxes = new TextBox[5];
             for (int i = 0; i < labels.Length; i++)
@@ -1283,6 +1315,7 @@ namespace Apple
                 Controls.Add(boxes[i]);
                 top += 35;
             }
+
             _txtName = boxes[0];
             _txtContact = boxes[1];
             _txtPhone = boxes[2];
@@ -1331,6 +1364,7 @@ namespace Apple
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
+
             int top = 15;
 
             Controls.Add(new Label { Text = "Имя/Название:", Left = 20, Top = top, AutoSize = true });
@@ -1392,7 +1426,7 @@ namespace Apple
         {
             get
             {
-                if (_cmbProduct.SelectedItem is DataRowView drv)
+                if (_cmbProduct.SelectedItem is DataRowView drv && drv["Id"] != DBNull.Value)
                     return Convert.ToInt32(drv["Id"]);
                 return 0;
             }
@@ -1401,7 +1435,7 @@ namespace Apple
         {
             get
             {
-                if (_cmbSupplier.SelectedItem is DataRowView drv)
+                if (_cmbSupplier.SelectedItem is DataRowView drv && drv["Id"] != DBNull.Value)
                     return Convert.ToInt32(drv["Id"]);
                 return 0;
             }
@@ -1419,9 +1453,9 @@ namespace Apple
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
+
             int top = 15;
 
-            // Товары
             Controls.Add(new Label { Text = "Товар:", Left = 20, Top = top, AutoSize = true });
             _cmbProduct = new ComboBox { Left = 140, Top = top - 3, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
             _products = new DataTable();
@@ -1450,7 +1484,6 @@ namespace Apple
             Controls.Add(_cmbProduct);
             top += 35;
 
-            // Поставщики
             Controls.Add(new Label { Text = "Поставщик:", Left = 20, Top = top, AutoSize = true });
             _cmbSupplier = new ComboBox { Left = 140, Top = top - 3, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
             _suppliers = new DataTable();
@@ -1471,19 +1504,16 @@ namespace Apple
             Controls.Add(_cmbSupplier);
             top += 35;
 
-            // Количество
             Controls.Add(new Label { Text = "Количество:", Left = 20, Top = top, AutoSize = true });
             _nudQuantity = new NumericUpDown { Left = 140, Top = top - 3, Width = 240, Maximum = 999999, Minimum = 1, Value = 1 };
             Controls.Add(_nudQuantity);
             top += 35;
 
-            // Цена
             Controls.Add(new Label { Text = "Цена закупки:", Left = 20, Top = top, AutoSize = true });
             _nudPrice = new NumericUpDown { Left = 140, Top = top - 3, Width = 240, Maximum = 9999999, DecimalPlaces = 2 };
             Controls.Add(_nudPrice);
             top += 35;
 
-            // Дата
             Controls.Add(new Label { Text = "Дата:", Left = 20, Top = top, AutoSize = true });
             _dtpDate = new DateTimePicker { Left = 140, Top = top - 3, Width = 240, Format = DateTimePickerFormat.Short };
             Controls.Add(_dtpDate);
@@ -1558,9 +1588,9 @@ namespace Apple
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
+
             int top = 15;
 
-            // Покупатели
             Controls.Add(new Label { Text = "Покупатель:", Left = 20, Top = top, AutoSize = true });
             _cmbCustomer = new ComboBox { Left = 120, Top = top - 3, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
             _customers = new DataTable();
@@ -1582,21 +1612,18 @@ namespace Apple
             if (_cmbCustomer.Items.Count > 0) _cmbCustomer.SelectedIndex = 0;
             Controls.Add(_cmbCustomer);
 
-            // Дата
             Controls.Add(new Label { Text = "Дата:", Left = 340, Top = top, AutoSize = true });
             _dtpDate = new DateTimePicker { Left = 380, Top = top - 3, Width = 130, Format = DateTimePickerFormat.Short };
             Controls.Add(_dtpDate);
 
-            // Статус (ИСПРАВЛЕНО: убран "Возврат" из создания)
             Controls.Add(new Label { Text = "Статус:", Left = 530, Top = top, AutoSize = true });
             _cmbStatus = new ComboBox { Left = 580, Top = top - 3, Width = 90, DropDownStyle = ComboBoxStyle.DropDownList };
             _cmbStatus.Items.AddRange(new object[] { "Завершена", "Отменена" });
             if (_cmbStatus.Items.Count > 0) _cmbStatus.SelectedIndex = 0;
-            _cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged; // Подписка на событие
+            _cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
             Controls.Add(_cmbStatus);
             top += 35;
 
-            // Товары для продажи
             Controls.Add(new Label { Text = "Товар:", Left = 20, Top = top, AutoSize = true });
             _cmbProduct = new ComboBox { Left = 70, Top = top - 3, Width = 250, DropDownStyle = ComboBoxStyle.DropDownList };
             _products = new DataTable();
@@ -1624,19 +1651,19 @@ namespace Apple
             _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
             Controls.Add(_cmbProduct);
 
-            // Кол-во и Цена
             Controls.Add(new Label { Text = "Кол-во:", Left = 335, Top = top, AutoSize = true });
             _nudQuantity = new NumericUpDown { Left = 395, Top = top - 3, Width = 60, Maximum = 9999, Minimum = 1, Value = 1 };
             Controls.Add(_nudQuantity);
+
             Controls.Add(new Label { Text = "Цена:", Left = 465, Top = top, AutoSize = true });
             _nudPrice = new NumericUpDown { Left = 505, Top = top - 3, Width = 80, Maximum = 9999999, DecimalPlaces = 2 };
             Controls.Add(_nudPrice);
+
             _btnAddItem = new Button { Text = "Добавить", Left = 595, Top = top - 5, Width = 75, Height = 28 };
             _btnAddItem.Click += BtnAddItem_Click;
             Controls.Add(_btnAddItem);
             top += 40;
 
-            // Таблица позиций
             _dgvItems = new DataGridView
             {
                 Left = 20,
@@ -1661,6 +1688,7 @@ namespace Apple
             _btnRemoveItem = new Button { Text = "Удалить позицию", Left = 20, Top = top, Width = 130 };
             _btnRemoveItem.Click += BtnRemoveItem_Click;
             Controls.Add(_btnRemoveItem);
+
             _lblTotal = new Label
             {
                 Text = "ИТОГО: 0.00 руб.",
@@ -1675,6 +1703,7 @@ namespace Apple
             _btnOk = new Button { Text = "Продать", Left = 490, Top = top, Width = 80 };
             _btnOk.Click += BtnOk_Click;
             Controls.Add(_btnOk);
+
             _btnCancel = new Button { Text = "Отмена", Left = 580, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
             Controls.Add(_btnCancel);
             CancelButton = _btnCancel;
@@ -1682,7 +1711,6 @@ namespace Apple
             if (_cmbProduct.Items.Count > 0) _cmbProduct.SelectedIndex = 0;
         }
 
-        // ИСПРАВЛЕНИЕ: Блокировка полей при выборе "Отменена"
         private void CmbStatus_SelectedIndexChanged(object? sender, EventArgs e)
         {
             bool isCancelled = _cmbStatus.SelectedItem?.ToString() == "Отменена";
@@ -1699,7 +1727,6 @@ namespace Apple
             }
         }
 
-        // ИСПРАВЛЕНИЕ: Разрешаем пустую продажу, если она Отменена
         private void BtnOk_Click(object? sender, EventArgs e)
         {
             string status = _cmbStatus.SelectedItem?.ToString() ?? "Завершена";
@@ -1734,12 +1761,36 @@ namespace Apple
                 return;
             }
 
-            int productId = Convert.ToInt32(drv["Id"]);
+            int productId;
+            try
+            {
+                productId = Convert.ToInt32(drv["Id"]);
+            }
+            catch
+            {
+                MessageBox.Show("Ошибка: некорректный товар. Выберите другой.", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (productId <= 0)
+            {
+                MessageBox.Show("Выберите корректный товар из списка!", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             int stock = Convert.ToInt32(drv["StockQuantity"]);
             string productName = drv["DisplayName"].ToString() ?? "";
             int qty = (int)_nudQuantity.Value;
             decimal price = _nudPrice.Value;
 
+            if (qty <= 0)
+            {
+                MessageBox.Show("Количество должно быть больше нуля!", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             if (stock <= 0)
             {
                 MessageBox.Show("Этот товар отсутствует на складе!", "Ошибка",
@@ -1775,7 +1826,6 @@ namespace Apple
                     Price = price
                 });
             }
-
             RefreshGrid();
         }
 

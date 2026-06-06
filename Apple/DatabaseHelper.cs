@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -6,9 +7,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Apple
 {
-    /// <summary>
-    /// Класс для работы с базой данных SQLite.
-    /// </summary>
     public static class DatabaseHelper
     {
         private static readonly string DbFolder = Path.Combine(
@@ -16,10 +14,6 @@ namespace Apple
         private static readonly string DbPath = Path.Combine(DbFolder, "apple.db");
         public static string ConnectionString => $"Data Source={DbPath}";
 
-        /// <summary>
-        /// Helper: выполняет запрос и возвращает DataTable.
-        /// Заменяет SqliteDataAdapter, которого нет в Microsoft.Data.Sqlite.
-        /// </summary>
         private static DataTable ExecuteDataTable(SqliteCommand cmd)
         {
             var dt = new DataTable();
@@ -28,9 +22,6 @@ namespace Apple
             return dt;
         }
 
-        /// <summary>
-        /// Инициализация БД: создание папки, таблиц и тестовых данных.
-        /// </summary>
         public static void Initialize()
         {
             if (!Directory.Exists(DbFolder))
@@ -39,73 +30,71 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
 
-            // Включаем внешние ключи
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = "PRAGMA foreign_keys = ON;";
                 cmd.ExecuteNonQuery();
             }
 
-            // Создаем таблицы
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS Categories (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL UNIQUE
-                    );
-                    CREATE TABLE IF NOT EXISTS Suppliers (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL,
-                        ContactPerson TEXT,
-                        Phone TEXT,
-                        Email TEXT,
-                        Address TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS Customers (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL,
-                        Type TEXT NOT NULL DEFAULT 'Розничный',
-                        Phone TEXT,
-                        Email TEXT,
-                        Address TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS Products (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Name TEXT NOT NULL,
-                        CategoryId INTEGER,
-                        PurchasePrice REAL NOT NULL DEFAULT 0,
-                        SalePrice REAL NOT NULL DEFAULT 0,
-                        StockQuantity INTEGER NOT NULL DEFAULT 0,
-                        FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE SET NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS Purchases (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        ProductId INTEGER NOT NULL,
-                        SupplierId INTEGER NOT NULL,
-                        Quantity INTEGER NOT NULL,
-                        PurchasePrice REAL NOT NULL,
-                        PurchaseDate TEXT NOT NULL,
-                        FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE,
-                        FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id) ON DELETE CASCADE
-                    );
-                    CREATE TABLE IF NOT EXISTS Sales (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        CustomerId INTEGER,
-                        SaleDate TEXT NOT NULL,
-                        Status TEXT NOT NULL DEFAULT 'Завершена',
-                        TotalAmount REAL NOT NULL DEFAULT 0,
-                        FOREIGN KEY (CustomerId) REFERENCES Customers(Id) ON DELETE SET NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS SaleItems (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        SaleId INTEGER NOT NULL,
-                        ProductId INTEGER NOT NULL,
-                        Quantity INTEGER NOT NULL,
-                        Price REAL NOT NULL,
-                        FOREIGN KEY (SaleId) REFERENCES Sales(Id) ON DELETE CASCADE,
-                        FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE
-                    );
+                CREATE TABLE IF NOT EXISTS Categories (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL UNIQUE
+                );
+                CREATE TABLE IF NOT EXISTS Suppliers (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    ContactPerson TEXT,
+                    Phone TEXT,
+                    Email TEXT,
+                    Address TEXT
+                );
+                CREATE TABLE IF NOT EXISTS Customers (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    Type TEXT NOT NULL DEFAULT 'Розничный',
+                    Phone TEXT,
+                    Email TEXT,
+                    Address TEXT
+                );
+                CREATE TABLE IF NOT EXISTS Products (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    CategoryId INTEGER,
+                    PurchasePrice REAL NOT NULL DEFAULT 0,
+                    SalePrice REAL NOT NULL DEFAULT 0,
+                    StockQuantity INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE SET NULL
+                );
+                CREATE TABLE IF NOT EXISTS Purchases (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ProductId INTEGER NOT NULL,
+                    SupplierId INTEGER NOT NULL,
+                    Quantity INTEGER NOT NULL,
+                    PurchasePrice REAL NOT NULL,
+                    PurchaseDate TEXT NOT NULL,
+                    FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE,
+                    FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS Sales (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CustomerId INTEGER,
+                    SaleDate TEXT NOT NULL,
+                    Status TEXT NOT NULL DEFAULT 'Завершена',
+                    TotalAmount REAL NOT NULL DEFAULT 0,
+                    FOREIGN KEY (CustomerId) REFERENCES Customers(Id) ON DELETE SET NULL
+                );
+                CREATE TABLE IF NOT EXISTS SaleItems (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SaleId INTEGER NOT NULL,
+                    ProductId INTEGER NOT NULL,
+                    Quantity INTEGER NOT NULL,
+                    Price REAL NOT NULL,
+                    FOREIGN KEY (SaleId) REFERENCES Sales(Id) ON DELETE CASCADE,
+                    FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE
+                );
                 ";
                 cmd.ExecuteNonQuery();
             }
@@ -391,6 +380,17 @@ namespace Apple
             return ExecuteDataTable(cmd);
         }
 
+        public static int GetProductStock(int productId)
+        {
+            using var connection = new SqliteConnection(ConnectionString);
+            connection.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
+            cmd.Parameters.AddWithValue("@id", productId);
+            var result = cmd.ExecuteScalar();
+            return result != null && result != DBNull.Value ? Convert.ToInt32(result) : 0;
+        }
+
         public static void AddProduct(string name, int? categoryId, decimal purchasePrice, decimal salePrice, int stockQuantity)
         {
             using var connection = new SqliteConnection(ConnectionString);
@@ -468,8 +468,31 @@ namespace Apple
 
         public static void AddPurchase(int productId, int supplierId, int quantity, decimal purchasePrice, DateTime purchaseDate)
         {
+            if (productId <= 0)
+                throw new ArgumentException("Некорректный ID товара. Выберите товар из списка.");
+            if (supplierId <= 0)
+                throw new ArgumentException("Некорректный ID поставщика. Выберите поставщика из списка.");
+            if (quantity <= 0)
+                throw new ArgumentException("Количество должно быть больше нуля.");
+
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
+
+            using (var checkCmd = connection.CreateCommand())
+            {
+                checkCmd.CommandText = "SELECT COUNT(*) FROM Products WHERE Id = @id;";
+                checkCmd.Parameters.AddWithValue("@id", productId);
+                if (Convert.ToInt32(checkCmd.ExecuteScalar()) == 0)
+                    throw new ArgumentException($"Товар с ID {productId} не найден в базе данных.");
+            }
+            using (var checkCmd = connection.CreateCommand())
+            {
+                checkCmd.CommandText = "SELECT COUNT(*) FROM Suppliers WHERE Id = @id;";
+                checkCmd.Parameters.AddWithValue("@id", supplierId);
+                if (Convert.ToInt32(checkCmd.ExecuteScalar()) == 0)
+                    throw new ArgumentException($"Поставщик с ID {supplierId} не найден в базе данных.");
+            }
+
             using var transaction = connection.BeginTransaction();
             try
             {
@@ -531,7 +554,6 @@ namespace Apple
             }
 
             using var transaction = connection.BeginTransaction();
-
             using var cmd1 = connection.CreateCommand();
             cmd1.Transaction = transaction;
             cmd1.CommandText = "UPDATE Products SET StockQuantity = MAX(0, StockQuantity - @quantity) WHERE Id = @id;";
@@ -581,6 +603,14 @@ namespace Apple
 
         public static int AddSale(int? customerId, DateTime saleDate, string status, List<SaleItem> items)
         {
+            foreach (var item in items)
+            {
+                if (item.ProductId <= 0)
+                    throw new ArgumentException($"Некорректный товар: {item.ProductName}. ID должен быть > 0.");
+                if (item.Quantity <= 0)
+                    throw new ArgumentException($"Некорректное количество для товара: {item.ProductName}.");
+            }
+
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var transaction = connection.BeginTransaction();
@@ -588,7 +618,6 @@ namespace Apple
             {
                 bool isCompleted = (status == "Завершена");
 
-                // 1. Проверка остатков ТОЛЬКО для завершенных продаж
                 if (isCompleted)
                 {
                     foreach (var item in items)
@@ -597,13 +626,15 @@ namespace Apple
                         checkCmd.Transaction = transaction;
                         checkCmd.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
                         checkCmd.Parameters.AddWithValue("@id", item.ProductId);
-                        var stock = Convert.ToInt32(checkCmd.ExecuteScalar());
+                        var stockResult = checkCmd.ExecuteScalar();
+                        if (stockResult == null || stockResult == DBNull.Value)
+                            throw new InvalidOperationException($"Товар '{item.ProductName}' (ID: {item.ProductId}) не найден в базе данных.");
+                        var stock = Convert.ToInt32(stockResult);
                         if (stock < item.Quantity)
-                            throw new InvalidOperationException($"Недостаточно товара (ID: {item.ProductId}). В наличии: {stock}, требуется: {item.Quantity}");
+                            throw new InvalidOperationException($"Недостаточно товара '{item.ProductName}'. В наличии: {stock}, требуется: {item.Quantity}");
                     }
                 }
 
-                // 2. Считаем сумму только для завершенных
                 decimal total = 0;
                 if (isCompleted)
                 {
@@ -611,7 +642,6 @@ namespace Apple
                         total += item.Price * item.Quantity;
                 }
 
-                // 3. Создаем запись о продаже
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = transaction;
                 cmd.CommandText = @"INSERT INTO Sales (CustomerId, SaleDate, Status, TotalAmount)
@@ -622,7 +652,6 @@ namespace Apple
                 cmd.Parameters.AddWithValue("@total", (double)total);
                 int saleId = Convert.ToInt32(cmd.ExecuteScalar());
 
-                // 4. Списываем товар и создаем позиции ТОЛЬКО если продажа Завершена
                 if (isCompleted)
                 {
                     foreach (var item in items)
@@ -663,28 +692,24 @@ namespace Apple
             using var transaction = connection.BeginTransaction();
             try
             {
-                // Узнаем статус продажи
                 using var cmdStatus = connection.CreateCommand();
                 cmdStatus.Transaction = transaction;
                 cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
                 cmdStatus.Parameters.AddWithValue("@id", id);
                 string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
 
-                // Возвращаем товар на склад ТОЛЬКО если удаляем Завершенную продажу
                 if (status == "Завершена")
                 {
                     using var cmdSelect = connection.CreateCommand();
                     cmdSelect.Transaction = transaction;
                     cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
                     cmdSelect.Parameters.AddWithValue("@saleId", id);
-
                     using (var reader = cmdSelect.ExecuteReader())
                     {
                         while (reader.Read())
                         {
                             int productId = reader.GetInt32(0);
                             int quantity = reader.GetInt32(1);
-
                             using var cmdUpdate = connection.CreateCommand();
                             cmdUpdate.Transaction = transaction;
                             cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
@@ -695,7 +720,6 @@ namespace Apple
                     }
                 }
 
-                // Удаляем саму продажу (SaleItems удалятся каскадно)
                 using var cmdDelete = connection.CreateCommand();
                 cmdDelete.Transaction = transaction;
                 cmdDelete.CommandText = "DELETE FROM Sales WHERE Id = @id;";
@@ -711,9 +735,6 @@ namespace Apple
             }
         }
 
-        /// <summary>
-        /// Оформляет возврат по завершенной продаже: возвращает товар на склад и меняет статус.
-        /// </summary>
         public static void ReturnSale(int id)
         {
             using var connection = new SqliteConnection(ConnectionString);
@@ -726,7 +747,6 @@ namespace Apple
                 cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
                 cmdStatus.Parameters.AddWithValue("@id", id);
                 string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
-
                 if (status != "Завершена")
                     throw new InvalidOperationException("Оформить возврат можно только для завершенной продажи.");
 
@@ -734,14 +754,12 @@ namespace Apple
                 cmdSelect.Transaction = transaction;
                 cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
                 cmdSelect.Parameters.AddWithValue("@saleId", id);
-
                 using (var reader = cmdSelect.ExecuteReader())
                 {
                     while (reader.Read())
                     {
                         int productId = reader.GetInt32(0);
                         int quantity = reader.GetInt32(1);
-
                         using var cmdUpdate = connection.CreateCommand();
                         cmdUpdate.Transaction = transaction;
                         cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
