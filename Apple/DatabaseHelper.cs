@@ -109,20 +109,40 @@ namespace Apple
             long count = (long)checkCmd.ExecuteScalar();
             if (count > 0) return;
 
-            Execute(connection, "INSERT INTO Categories (Name) VALUES ('Смартфоны'), ('Ноутбуки'), ('Аксессуары');");
-            Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES
-                ('ТехноОпт', 'Иванов И.И.', '+7-900-111-22-33', 'info@technoopt.ru', 'г. Москва, ул. Складская 1'),
-                ('МегаСнаб', 'Петров П.П.', '+7-900-222-33-44', 'mega@snab.ru', 'г. Санкт-Петербург, пр. Невский 50');");
-            Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
-                ('ООО Ромашка', 'Оптовый', '+7-900-333-44-55', 'info@romashka.ru', 'г. Казань'),
-                ('Сидоров А.В.', 'Розничный', '+7-900-444-55-66', 'sidorov@mail.ru', 'г. Москва');");
-            Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) VALUES
-                ('iPhone 15 Pro', 1, 75000, 95000, 10),
-                ('Samsung Galaxy S24', 1, 55000, 75000, 15),
-                ('MacBook Air M2', 2, 85000, 110000, 5),
-                ('ASUS VivoBook', 2, 40000, 55000, 8),
-                ('Чехол iPhone', 3, 150, 500, 100),
-                ('Наушники AirPods', 3, 8000, 15000, 30);");
+
+Execute(connection, "INSERT INTO Categories (Name) VALUES ('iPhone 16'), ('iPhone 17'), ('Аксессуары');");
+
+
+Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES
+    ('Apple Distribution International', 'Джонсон М.', '+1-408-996-1010', 'europe_supply@apple.com', 'Ирландия, г. Корк, Hollyhill Industrial Estate'),
+    ('ASBISc Enterprises', 'Костас А.', '+357-25-857-000', 'info@asbis.com', 'Кипр, г. Лимасол, ул. Архиепископа Макариоса III, 195'),
+    ('Ingram Micro Inc.', 'Смит Д.', '+1-714-566-1000', 'europe@ingrammicro.com', 'США, г. Ирвайн, ул. Алтон Парквей, 3351'),
+    ('Tech Data Europe', 'Мюллер Г.', '+49-89-247-37-0', 'info@techdata.eu', 'Германия, г. Мюнхен, ул. Ландсбергер, 312'),
+    ('Also Holding AG', 'Фишер Т.', '+41-41-749-20-00', 'contact@also.com', 'Швейцария, г. Эмменбрюке, ул. Зюрсеештрассе, 1'),
+    ('Westcoast Limited', 'Браун П.', '+44-118-912-1000', 'sales@westcoast.co.uk', 'Великобритания, г. Рединг, ул. Уитли Роуд, 1');");
+
+Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
+    ('5 Элемент', 'Сеть магазинов', '+375-29-555-66-77', 'info@5element.by', 'г. Минск, ул. Притыцкого, 100'),
+    ('iStore', 'Сеть магазинов', '+375-29-666-77-88', 'info@istore.by', 'г. Минск, пр. Победителей, 10'),
+    ('21 век', 'Сеть магазинов', '+375-29-777-88-99', 'info@21vek.by', 'г. Минск, ул. Немига, 12'),
+    ('Электросила', 'Розничный', '+375-29-888-99-00', 'info@electrosila.by', 'г. Гомель, ул. Советская, 5'),
+    ('ООО БелТрейд', 'Оптовый', '+375-29-333-44-55', 'info@beltrade.by', 'г. Гродно, ул. Ожешко, 8'),
+    ('ИП Иванов В.С.', 'Розничный', '+375-44-111-22-33', 'ivanov@mail.ru', 'г. Могилёв, ул. Первомайская, 3'),
+    ('Сидоров А.В.', 'Розничный', '+375-29-444-55-66', 'sidorov@mail.ru', 'г. Минск, ул. Коласа, 15'),
+    ('ООО ТехноМир', 'Оптовый', '+375-29-999-00-11', 'info@technomir.by', 'г. Брест, ул. Московская, 20');");
+
+Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) VALUES
+    ('iPhone 16 128GB', 1, 2500.00, 3199.00, 0),
+    ('iPhone 16 256GB', 1, 2700.00, 3399.00, 0),
+    ('iPhone 16 512GB', 1, 3000.00, 3500.00, 0),
+    ('iPhone 16 Pro 256GB', 1, 3500.00, 4399.00, 0),
+    ('iPhone 16 Pro Max 512GB', 1, 4500.00, 5599.00, 0),
+    ('iPhone 17 128GB', 2, 2900.00, 3699.00, 0),
+    ('iPhone 17 Pro 256GB', 2, 4000.00, 4999.00, 0),
+    ('iPhone 17 Pro Max 1TB', 2, 5200.00, 6499.00, 0),
+    ('MagSafe чехол iPhone 16 Pro', 3, 30.00, 79.00, 0),
+    ('AirPods Pro 2', 3, 500.00, 749.00, 0),
+    ('Кабель USB-C Lightning 1м', 3, 15.00, 39.00, 0);");
         }
 
         private static void Execute(SqliteConnection connection, string sql)
