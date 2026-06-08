@@ -46,16 +46,6 @@ Install-Package Microsoft.Data.Sqlite -Version 10.0.8
 Install-Package Microsoft.Data.SqlClient -Version 7.0.1
 Install-Package System.Data.SqlClient -Version 4.9.1
 ```
-
-### 📖 Назначение библиотек
-
-| Библиотека | Зачем нужна |
-|---|---|
-| **ClosedXML** | Генерация настоящих `.xlsx`-файлов Excel с форматированием, автофильтром, «зеброй» и закреплёнными строками |
-| **Microsoft.Data.Sqlite** | Современный ADO.NET-провайдер для работы с SQLite (поддержка `PRAGMA`, транзакций, параметризованных запросов) |
-| **Microsoft.Data.SqlClient** | Драйвер для Microsoft SQL Server (зарезервирован для возможного перехода на SQL Server в будущем) |
-| **System.Data.SqlClient** | Совместимость с legacy-кодом и `DataTable` |
-
 ---
 
 ## 🗄️ Структура базы данных
