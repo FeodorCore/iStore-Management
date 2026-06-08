@@ -1,0 +1,91 @@
+@startuml
+
+' hide the spot
+' hide circle
+
+' avoid problems with angled crows feet
+skinparam linetype ortho
+
+entity "Categories" as e01 {
+  *Id : number <<generated>>
+  --
+  *Name : text
+}
+
+entity "Suppliers" as e02 {
+  *Id : number <<generated>>
+  --
+  *Name : text
+  ContactPerson : text
+  Phone : text
+  Email : text
+  Address : text
+}
+
+entity "Customers" as e03 {
+  *Id : number <<generated>>
+  --
+  *Name : text
+  *Type : text
+  Phone : text
+  Email : text
+  Address : text
+}
+
+entity "Products" as e04 {
+  *Id : number <<generated>>
+  --
+  *Name : text
+  CategoryId : number <<FK>>
+  PurchasePrice : number
+  SalePrice : number
+  StockQuantity : number
+  IsActive : number
+}
+
+entity "Purchases" as e05 {
+  *Id : number <<generated>>
+  --
+  *ProductId : number <<FK>>
+  *SupplierId : number <<FK>>
+  *Quantity : number
+  *PurchasePrice : number
+  *PurchaseDate : text
+  Status : text
+}
+
+entity "Sales" as e06 {
+  *Id : number <<generated>>
+  --
+  CustomerId : number <<FK>>
+  *SaleDate : text
+  Status : text
+  TotalAmount : number
+}
+
+entity "SaleItems" as e07 {
+  *Id : number <<generated>>
+  --
+  *SaleId : number <<FK>>
+  *ProductId : number <<FK>>
+  *Quantity : number
+  *Price : number
+  CostPrice : number
+}
+
+e01 }|..|| e04
+e02 }|..|| e05
+e04 }|..|| e05
+e03 }|..|| e06
+e06 ||..|| e07
+e04 ||..|| e07
+
+note right of e01 : Категории\nON DELETE SET NULL
+note right of e02 : Поставщики\nON DELETE RESTRICT
+note right of e03 : Покупатели\nON DELETE SET NULL
+note right of e04 : Товары
+note right of e05 : Закупки
+note right of e06 : Продажи
+note right of e07 : Позиции продаж\nSaleItems: ON DELETE CASCADE
+
+@enduml
