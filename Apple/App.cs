@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using ClosedXML.Excel;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,6 +18,9 @@ namespace Apple
         private DataTable? _currentReceiptData;
         private string _currentReceiptCustomer = "";
         private int _currentReceiptSaleId = 0;
+
+        // Название текущего отчёта — будет в заголовке Excel
+        private string _currentReportTitle = "Отчёт";
 
         public App()
         {
@@ -910,12 +914,14 @@ namespace Apple
 
         private void LoadReports()
         {
+            _currentReportTitle = "Остатки на складе";
             try { SetReportData(DatabaseHelper.GetStockReport()); }
             catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnReportStock_Click(object? sender, EventArgs e)
         {
+            _currentReportTitle = "Остатки на складе";
             try
             {
                 int? categoryId = null;
@@ -931,6 +937,7 @@ namespace Apple
 
         private void BtnReportSales_Click(object? sender, EventArgs e)
         {
+            _currentReportTitle = "Продажи";
             try
             {
                 int? categoryId = null;
@@ -947,6 +954,7 @@ namespace Apple
 
         private void BtnReportPurchases_Click(object? sender, EventArgs e)
         {
+            _currentReportTitle = "Закупки";
             try
             {
                 int? categoryId = null;
@@ -963,6 +971,7 @@ namespace Apple
 
         private void BtnReportProfit_Click(object? sender, EventArgs e)
         {
+            _currentReportTitle = "Прибыль";
             try
             {
                 int? categoryId = null;
@@ -985,18 +994,23 @@ namespace Apple
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            // Формируем имя файла из названия отчёта
+            string safeFileName = SanitizeFileName(_currentReportTitle);
+
             using var dialog = new SaveFileDialog
             {
-                Filter = "CSV файл (*.csv)|*.csv",
-                FileName = $"Report_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
-                DefaultExt = "csv"
+                Filter = "Excel файл (*.xlsx)|*.xlsx",
+                FileName = $"{safeFileName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
+                DefaultExt = "xlsx"
             };
+
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
-                    ExportToCsv(dataGridView7, dialog.FileName);
-                    MessageBox.Show("Данные успешно экспортированы!", "Успех",
+                    ExportToExcel(dataGridView7, dialog.FileName, _currentReportTitle);
+                    MessageBox.Show("Отчёт успешно сохранён в Excel!", "Успех",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
@@ -1007,27 +1021,132 @@ namespace Apple
             }
         }
 
-        private static void ExportToCsv(DataGridView dgv, string filePath)
+        /// <summary>
+        /// Экспорт в настоящий Excel (.xlsx) через ClosedXML.
+        /// </summary>
+        private static void ExportToExcel(DataGridView dgv, string filePath, string reportTitle)
         {
-            var sb = new StringBuilder();
-            var headers = new List<string>();
-            foreach (DataGridViewColumn col in dgv.Columns)
+            using var workbook = new XLWorkbook();
+            var ws = workbook.Worksheets.Add(reportTitle.Length > 31 ? reportTitle.Substring(0, 31) : reportTitle);
+
+            // --- Строка 1: Заголовок отчёта (крупный, жирный) ---
+            ws.Cell(1, 1).Value = reportTitle;
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 16;
+            ws.Cell(1, 1).Style.Font.FontColor = XLColor.DarkBlue;
+
+            // --- Строка 2: Дата формирования ---
+            ws.Cell(2, 1).Value = $"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
+            ws.Cell(2, 1).Style.Font.FontColor = XLColor.Gray;
+            ws.Cell(2, 1).Style.Font.Italic = true;
+
+            // --- Строка 4: Заголовки таблицы (синий фон, белый текст) ---
+            int headerRow = 4;
+            int colCount = dgv.Columns.Count;
+
+            for (int c = 0; c < colCount; c++)
             {
-                headers.Add($"\"{col.HeaderText.Replace("\"", "\"\"")}\"");
+                var cell = ws.Cell(headerRow, c + 1);
+                cell.Value = dgv.Columns[c].HeaderText;
+                cell.Style.Font.Bold = true;
+                cell.Style.Font.FontColor = XLColor.White;
+                cell.Style.Fill.BackgroundColor = XLColor.DarkBlue;
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             }
-            sb.AppendLine(string.Join(";", headers));
-            foreach (DataGridViewRow row in dgv.Rows)
+
+            // --- Строки данных (с 5-й) ---
+            int dataRow = headerRow + 1;
+            for (int r = 0; r < dgv.Rows.Count; r++)
             {
-                if (row.IsNewRow) continue;
-                var cells = new List<string>();
-                foreach (DataGridViewCell cell in row.Cells)
+                var dgvRow = dgv.Rows[r];
+                if (dgvRow.IsNewRow) continue;
+
+                for (int c = 0; c < colCount; c++)
                 {
-                    string val = cell.Value?.ToString() ?? "";
-                    cells.Add($"\"{val.Replace("\"", "\"\"")}\"");
+                    var cell = ws.Cell(dataRow, c + 1);
+                    var val = dgvRow.Cells[c].Value;
+
+                    if (val == null || val == DBNull.Value)
+                    {
+                        cell.Value = "";
+                    }
+                    else if (val is decimal dec)
+                    {
+                        cell.Value = (double)dec;
+                        cell.Style.NumberFormat.Format = "#,##0.00";
+                    }
+                    else if (val is double d)
+                    {
+                        cell.Value = d;
+                        cell.Style.NumberFormat.Format = "#,##0.00";
+                    }
+                    else if (val is int i)
+                    {
+                        cell.Value = i;
+                        cell.Style.NumberFormat.Format = "#,##0";
+                    }
+                    else if (val is long l)
+                    {
+                        cell.Value = l;
+                    }
+                    else if (val is DateTime dt)
+                    {
+                        cell.Value = dt;
+                        cell.Style.NumberFormat.Format = "dd.MM.yyyy HH:mm";
+                    }
+                    else
+                    {
+                        cell.Value = val.ToString();
+                    }
+
+                    // Границы
+                    cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    cell.Style.Border.OutsideBorderColor = XLColor.LightGray;
+
+                    // Зебра — чередование строк
+                    if (r % 2 == 1)
+                        cell.Style.Fill.BackgroundColor = XLColor.AliceBlue;
                 }
-                sb.AppendLine(string.Join(";", cells));
+                dataRow++;
             }
-            File.WriteAllText(filePath, sb.ToString(), new UTF8Encoding(true));
+
+            // --- Объединяем заголовок на всю ширину таблицы ---
+            if (colCount > 1)
+                ws.Range(1, 1, 1, colCount).Merge();
+
+            // --- Автоширина колонок ---
+            ws.Columns().AdjustToContents();
+            foreach (var col in ws.Columns(1, colCount))
+            {
+                if (col.Width < 10) col.Width = 10;
+                if (col.Width > 50) col.Width = 50;
+            }
+
+            // --- Автофильтр на заголовках ---
+            int lastDataRow = dataRow - 1;
+            if (lastDataRow >= headerRow)
+            {
+                ws.Range(headerRow, 1, lastDataRow, colCount).SetAutoFilter();
+            }
+
+            // --- Закрепляем строку заголовков ---
+            ws.SheetView.FreezeRows(headerRow);
+
+            // --- Сохраняем ---
+            workbook.SaveAs(filePath);
+        }
+
+        /// <summary>
+        /// Убирает недопустимые символы из имени файла.
+        /// </summary>
+        private static string SanitizeFileName(string fileName)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var sb = new StringBuilder(fileName.Length);
+            foreach (char c in fileName)
+                sb.Append(invalid.Contains(c) ? '_' : c);
+            return sb.ToString();
         }
         #endregion
 
@@ -1419,7 +1538,6 @@ namespace Apple
             {
                 try
                 {
-                    // 🚀 ИСПРАВЛЕНО: Подставляем закупочную цену, а не цену продажи
                     _nudPrice.Value = Convert.ToDecimal(drv["PurchasePrice"]);
                 }
                 catch { }
