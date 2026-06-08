@@ -140,8 +140,8 @@ namespace Apple
                 ('ASBISc Enterprises', 'Костас А.', '+357-25-857-000', 'info@asbis.com', 'Кипр, г. Лимасол, ул. Архиепископа Макариоса III, 195'),
                 ('Ingram Micro Inc.', 'Смит Д.', '+1-714-566-1000', 'europe@ingrammicro.com', 'США, г. Ирвайн, ул. Алтон Парквей, 3351');");
             Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
-                ('5 Элемент', 'Сеть магазинов', '+375-29-555-66-77', 'info@5element.by', 'г. Минск, ул. Притыцкого, 100'),
-                ('iStore', 'Сеть магазинов', '+375-29-666-77-88', 'info@istore.by', 'г. Минск, пр. Победителей, 10'),
+                ('5 Элемент', 'Оптовый', '+375-29-555-66-77', 'info@5element.by', 'г. Минск, ул. Притыцкого, 100'),
+                ('iStore', 'Оптовый', '+375-29-666-77-88', 'info@istore.by', 'г. Минск, пр. Победителей, 10'),
                 ('ИП Иванов В.С.', 'Розничный', '+375-44-111-22-33', 'ivanov@mail.ru', 'г. Могилёв, ул. Первомайская, 3');");
             Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity, IsActive) VALUES
                 ('iPhone 16 128GB', 1, 2500.00, 3199.00, 0, 1),
@@ -884,7 +884,6 @@ namespace Apple
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            // 🚀 ИСПРАВЛЕНО: Прибыль теперь считается по ИСТОРИЧЕСКОЙ себестоимости (CostPrice)
             string sql = @"SELECT p.Name AS 'Товар',
                 SUM(si.Quantity) AS 'Продано шт.',
                 SUM(si.Quantity * si.Price) AS 'Выручка',
