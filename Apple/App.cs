@@ -30,15 +30,11 @@ namespace Apple
             result.Columns.Add("Id", typeof(int));
             result.Columns.Add("Name", typeof(string));
             result.Rows.Add(defaultId, defaultName);
-
             if (source != null)
             {
                 foreach (DataRow row in source.Rows)
                 {
-                    result.Rows.Add(
-                        Convert.ToInt32(row["Id"]),
-                        row["Name"]?.ToString() ?? ""
-                    );
+                    result.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"]?.ToString() ?? "");
                 }
             }
             return result;
@@ -58,7 +54,6 @@ namespace Apple
             }
 
             tabControl1.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
-
             button1.Click += BtnAddProduct_Click;
             button2.Click += BtnEditProduct_Click;
             button3.Click += BtnDeleteProduct_Click;
@@ -110,8 +105,6 @@ namespace Apple
             btnReportProfit.Click += BtnReportProfit_Click;
             btnExportExcel.Click += BtnExportExcel_Click;
 
-            // ⚡ ПОДПИСКА НА DataError — подавляем стандартное окно WinForms
-            // при конфликте типов в dataGridView7 (например, Double vs Image)
             dataGridView7.DataError += DataGridView7_DataError;
 
             LoadProducts();
@@ -255,8 +248,15 @@ namespace Apple
             if (dataGridView1.CurrentRow.Cells["colProdId"].Value == null) return;
 
             int id = Convert.ToInt32(dataGridView1.CurrentRow.Cells["colProdId"].Value);
+
+            if (DatabaseHelper.HasProductHistory(id))
+            {
+                MessageBox.Show("Нельзя удалить товар, по которому были закупки или продажи!\nЭто нарушит финансовую историю.", "Запрещено", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (MessageBox.Show("Удалить выбранный товар?", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -336,6 +336,7 @@ namespace Apple
             int id = Convert.ToInt32(dataGridView2.CurrentRow.Cells["colCatId"].Value);
             string currentName = dataGridView2.CurrentRow.Cells["colCatName"].Value?.ToString() ?? "";
             string? name = ShowInputDialog("Редактировать категорию", "Название категории:", currentName);
+
             if (!string.IsNullOrWhiteSpace(name))
             {
                 try
@@ -359,7 +360,7 @@ namespace Apple
 
             int id = Convert.ToInt32(dataGridView2.CurrentRow.Cells["colCatId"].Value);
             if (MessageBox.Show("Удалить выбранную категорию?", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -473,7 +474,7 @@ namespace Apple
 
             int id = Convert.ToInt32(dataGridView3.CurrentRow.Cells["colSupId"].Value);
             if (MessageBox.Show("Удалить выбранного поставщика?", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -578,7 +579,7 @@ namespace Apple
 
             int id = Convert.ToInt32(dataGridView4.CurrentRow.Cells["colCustId"].Value);
             if (MessageBox.Show("Удалить выбранного покупателя?", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
@@ -623,21 +624,9 @@ namespace Apple
             using var form = new PurchaseForm();
             if (form.ShowDialog() == DialogResult.OK)
             {
-                if (form.ProductId <= 0)
+                if (form.ProductId <= 0 || form.SupplierId <= 0 || form.Quantity <= 0)
                 {
-                    MessageBox.Show("Выберите товар из списка!", "Внимание",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                if (form.SupplierId <= 0)
-                {
-                    MessageBox.Show("Выберите поставщика из списка!", "Внимание",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                if (form.Quantity <= 0)
-                {
-                    MessageBox.Show("Количество должно быть больше нуля!", "Внимание",
+                    MessageBox.Show("Заполните корректно товар, поставщика и количество!", "Внимание",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
@@ -658,9 +647,7 @@ namespace Apple
 
         private void BtnEditPurchase_Click(object? sender, EventArgs e)
         {
-            if (dataGridView5.CurrentRow == null) return;
-            MessageBox.Show("Для редактирования закупки удалите текущую и создайте новую.\n" +
-                            "Остатки будут автоматически скорректированы.", "Информация",
+            MessageBox.Show("Редактирование закупки запрещено учетной политикой.\nОформите возврат поставщику и создайте новую закупку.", "Информация",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -670,14 +657,15 @@ namespace Apple
             if (dataGridView5.CurrentRow.Cells["colPurId"].Value == null) return;
 
             int id = Convert.ToInt32(dataGridView5.CurrentRow.Cells["colPurId"].Value);
-            if (MessageBox.Show("Удалить закупку? Остаток товара будет скорректирован.", "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            if (MessageBox.Show("Оформить ВОЗВРАТ поставщику?\n(Товар должен быть в наличии на складе)", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
-                    DatabaseHelper.DeletePurchase(id);
+                    DatabaseHelper.ReturnPurchase(id);
                     LoadPurchases();
                     LoadProducts();
+                    MessageBox.Show("Возврат успешно оформлен!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
@@ -730,25 +718,7 @@ namespace Apple
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
-
-                    foreach (var item in form.Items)
-                    {
-                        if (item.ProductId <= 0)
-                        {
-                            MessageBox.Show($"Ошибка: некорректный товар '{item.ProductName}' в списке.", "Ошибка",
-                                MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return;
-                        }
-                        if (item.Quantity <= 0)
-                        {
-                            MessageBox.Show($"Ошибка: количество товара '{item.ProductName}' должно быть больше 0.", "Ошибка",
-                                MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return;
-                        }
-                    }
-
-                    int saleId = DatabaseHelper.AddSale(form.CustomerId, form.SaleDate,
-                        form.Status, form.Items);
+                    int saleId = DatabaseHelper.AddSale(form.CustomerId, form.SaleDate, form.Status, form.Items);
                     LoadSales();
                     LoadProducts();
 
@@ -778,12 +748,9 @@ namespace Apple
             if (status == "Завершена")
             {
                 var result = MessageBox.Show(
-                    "Выберите действие:\n" +
-                    "[Да] - Оформить ВОЗВРАТ (вернуть товар на склад, сменить статус)\n" +
-                    "[Нет] - Удалить продажу (товар также вернется)\n" +
-                    "[Отмена] - Закрыть окно",
+                    "Оформить ВОЗВРАТ?\n(Товар вернется на склад, статус сменится на 'Возврат')",
                     "Управление продажей",
-                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question);
 
                 if (result == DialogResult.Yes)
@@ -802,31 +769,10 @@ namespace Apple
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
-                else if (result == DialogResult.No)
-                {
-                    BtnDeleteSale_Click(sender, e);
-                }
             }
-            else if (status == "Отменена")
+            else if (status == "Возврат" || status == "Отменена")
             {
-                if (MessageBox.Show("Удалить отмененную продажу? (Склад не изменится)", "Подтверждение",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    try
-                    {
-                        DatabaseHelper.DeleteSale(id);
-                        LoadSales();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-            else if (status == "Возврат")
-            {
-                MessageBox.Show("Эта продажа уже возвращена. Редактирование невозможно.", "Информация",
+                MessageBox.Show("Эта продажа уже обработана. Редактирование невозможно.", "Информация",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -839,22 +785,24 @@ namespace Apple
             int id = Convert.ToInt32(dataGridView6.CurrentRow.Cells["colSaleId"].Value);
             string status = dataGridView6.CurrentRow.Cells["colSaleStatus"].Value?.ToString() ?? "";
 
-            string msg = "Удалить продажу?";
             if (status == "Завершена")
-                msg += "\nТовар будет возвращен на склад.";
-            else if (status == "Отменена")
-                msg += "\nСклад не изменится (товар не списывался).";
-            else if (status == "Возврат")
-                msg += "\nСклад не изменится (товар уже был возвращен ранее).";
+            {
+                MessageBox.Show("Удаление завершенной продажи запрещено!\nИспользуйте 'Редактировать' -> 'Оформить возврат'.", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string msg = "Удалить продажу?";
+            if (status == "Отменена") msg += "\nСклад не изменится (товар не списывался).";
+            else if (status == "Возврат") msg += "\nСклад не изменится (товар уже был возвращен ранее).";
 
             if (MessageBox.Show(msg, "Подтверждение",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 try
                 {
                     DatabaseHelper.DeleteSale(id);
                     LoadSales();
-                    LoadProducts();
                 }
                 catch (Exception ex)
                 {
@@ -881,7 +829,6 @@ namespace Apple
 
             var printDoc = new PrintDocument();
             printDoc.PrintPage += PrintDoc_PrintPage;
-
             var preview = new PrintPreviewDialog
             {
                 Document = printDoc,
@@ -889,50 +836,31 @@ namespace Apple
                 Height = 600,
                 Text = "Предпросмотр чека"
             };
-
-            try
-            {
-                preview.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка печати: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            try { preview.ShowDialog(); }
+            catch (Exception ex) { MessageBox.Show($"Ошибка печати: {ex.Message}"); }
         }
 
         private void PrintDoc_PrintPage(object? sender, PrintPageEventArgs e)
         {
             if (_currentReceiptData == null || e.Graphics == null) return;
-
             var g = e.Graphics;
             float y = 20;
             float leftMargin = 20;
-
             var titleFont = new Font("Arial", 14, FontStyle.Bold);
             var headerFont = new Font("Arial", 10, FontStyle.Bold);
             var normalFont = new Font("Arial", 9);
 
-            g.DrawString("=== ЧЕК ===", titleFont, Brushes.Black, leftMargin, y);
-            y += 30;
-            g.DrawString($"Чек №: {_currentReceiptSaleId}", normalFont, Brushes.Black, leftMargin, y);
-            y += 18;
-            g.DrawString($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}", normalFont, Brushes.Black, leftMargin, y);
-            y += 18;
-            g.DrawString($"Покупатель: {_currentReceiptCustomer}", normalFont, Brushes.Black, leftMargin, y);
-            y += 25;
-
-            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y);
-            y += 18;
+            g.DrawString("=== ЧЕК ===", titleFont, Brushes.Black, leftMargin, y); y += 30;
+            g.DrawString($"Чек №: {_currentReceiptSaleId}", normalFont, Brushes.Black, leftMargin, y); y += 18;
+            g.DrawString($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}", normalFont, Brushes.Black, leftMargin, y); y += 18;
+            g.DrawString($"Покупатель: {_currentReceiptCustomer}", normalFont, Brushes.Black, leftMargin, y); y += 25;
+            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y); y += 18;
 
             g.DrawString("Товар", headerFont, Brushes.Black, leftMargin, y);
             g.DrawString("Кол-во", headerFont, Brushes.Black, leftMargin + 200, y);
             g.DrawString("Цена", headerFont, Brushes.Black, leftMargin + 270, y);
-            g.DrawString("Сумма", headerFont, Brushes.Black, leftMargin + 350, y);
-            y += 20;
-
-            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y);
-            y += 15;
+            g.DrawString("Сумма", headerFont, Brushes.Black, leftMargin + 350, y); y += 20;
+            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y); y += 15;
 
             decimal total = 0;
             foreach (DataRow row in _currentReceiptData.Rows)
@@ -949,33 +877,20 @@ namespace Apple
                 g.DrawString(sum, normalFont, Brushes.Black, leftMargin + 350, y);
                 y += 16;
             }
-
             y += 5;
-            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y);
-            y += 18;
-
-            g.DrawString($"ИТОГО: {total:F2} руб.", headerFont, Brushes.Black, leftMargin + 280, y);
-            y += 25;
-
-            g.DrawString("Спасибо за покупку!", normalFont, Brushes.Black, leftMargin + 130, y);
-            y += 18;
+            g.DrawString(new string('-', 50), normalFont, Brushes.Black, leftMargin, y); y += 18;
+            g.DrawString($"ИТОГО: {total:F2} руб.", headerFont, Brushes.Black, leftMargin + 280, y); y += 25;
+            g.DrawString("Спасибо за покупку!", normalFont, Brushes.Black, leftMargin + 130, y); y += 18;
             g.DrawString("=== Apple Store ===", normalFont, Brushes.Black, leftMargin + 120, y);
         }
         #endregion
 
         #region Reports (Tab 7)
-        /// <summary>
-        /// ⚡ КЛЮЧЕВОЙ МЕТОД: очищает старые колонки dataGridView7 перед привязкой нового DataTable.
-        /// Предотвращает InvalidCastException (Double -> Image), когда грид пытается повторно
-        /// использовать старые колонки от другого отчёта.
-        /// </summary>
         private void SetReportData(DataTable data)
         {
             dataGridView7.DataSource = null;
             dataGridView7.Columns.Clear();
             dataGridView7.DataSource = data;
-
-            // Автоматически форматируем денежные колонки (2 знака после запятой)
             foreach (DataGridViewColumn col in dataGridView7.Columns)
             {
                 string header = col.HeaderText.ToLower();
@@ -988,10 +903,6 @@ namespace Apple
             }
         }
 
-        /// <summary>
-        /// ⚡ Подавляем стандартное страшное окно WinForms "To replace this default dialog..."
-        /// при конфликтах форматирования ячеек в отчётах.
-        /// </summary>
         private void DataGridView7_DataError(object? sender, DataGridViewDataErrorEventArgs e)
         {
             e.ThrowException = false;
@@ -999,15 +910,8 @@ namespace Apple
 
         private void LoadReports()
         {
-            try
-            {
-                SetReportData(DatabaseHelper.GetStockReport());
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки отчета: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            try { SetReportData(DatabaseHelper.GetStockReport()); }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnReportStock_Click(object? sender, EventArgs e)
@@ -1022,11 +926,7 @@ namespace Apple
                 }
                 SetReportData(DatabaseHelper.GetStockReport(categoryId));
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnReportSales_Click(object? sender, EventArgs e)
@@ -1042,11 +942,7 @@ namespace Apple
                 SetReportData(DatabaseHelper.GetSalesReport(
                     dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnReportPurchases_Click(object? sender, EventArgs e)
@@ -1062,11 +958,7 @@ namespace Apple
                 SetReportData(DatabaseHelper.GetPurchasesReport(
                     dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnReportProfit_Click(object? sender, EventArgs e)
@@ -1082,11 +974,7 @@ namespace Apple
                 SetReportData(DatabaseHelper.GetProfitReport(
                     dateTimePickerRepFrom.Value, dateTimePickerRepTo.Value, categoryId));
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            catch (Exception ex) { MessageBox.Show($"Ошибка: {ex.Message}"); }
         }
 
         private void BtnExportExcel_Click(object? sender, EventArgs e)
@@ -1097,14 +985,12 @@ namespace Apple
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-
             using var dialog = new SaveFileDialog
             {
                 Filter = "CSV файл (*.csv)|*.csv",
                 FileName = $"Report_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
                 DefaultExt = "csv"
             };
-
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 try
@@ -1130,7 +1016,6 @@ namespace Apple
                 headers.Add($"\"{col.HeaderText.Replace("\"", "\"\"")}\"");
             }
             sb.AppendLine(string.Join(";", headers));
-
             foreach (DataGridViewRow row in dgv.Rows)
             {
                 if (row.IsNewRow) continue;
@@ -1151,10 +1036,10 @@ namespace Apple
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out decimal result))
+                System.Globalization.CultureInfo.InvariantCulture, out decimal result))
                 return result;
             if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.CurrentCulture, out result))
+                System.Globalization.CultureInfo.CurrentCulture, out result))
                 return result;
             return null;
         }
@@ -1315,14 +1200,13 @@ namespace Apple
                 Controls.Add(boxes[i]);
                 top += 35;
             }
-
             _txtName = boxes[0];
             _txtContact = boxes[1];
             _txtPhone = boxes[2];
             _txtEmail = boxes[3];
             _txtAddress = boxes[4];
-
             top += 5;
+
             var btnOk = new Button { Text = "OK", Left = 190, Top = top, Width = 80, DialogResult = DialogResult.OK };
             var btnCancel = new Button { Text = "Отмена", Left = 280, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
             Controls.AddRange(new Control[] { btnOk, btnCancel });
@@ -1366,7 +1250,6 @@ namespace Apple
             MinimizeBox = false;
 
             int top = 15;
-
             Controls.Add(new Label { Text = "Имя/Название:", Left = 20, Top = top, AutoSize = true });
             _txtName = new TextBox { Left = 140, Top = top - 3, Width = 220 };
             Controls.Add(_txtName);
@@ -1455,13 +1338,13 @@ namespace Apple
             MinimizeBox = false;
 
             int top = 15;
-
             Controls.Add(new Label { Text = "Товар:", Left = 20, Top = top, AutoSize = true });
             _cmbProduct = new ComboBox { Left = 140, Top = top - 3, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
             _products = new DataTable();
             _products.Columns.Add("Id", typeof(int));
             _products.Columns.Add("DisplayName", typeof(string));
             _products.Columns.Add("SalePrice", typeof(decimal));
+            _products.Columns.Add("PurchasePrice", typeof(decimal));
             _products.Columns.Add("StockQuantity", typeof(int));
             try
             {
@@ -1472,6 +1355,7 @@ namespace Apple
                         Convert.ToInt32(row["Id"]),
                         row["DisplayName"].ToString(),
                         Convert.ToDecimal(row["SalePrice"]),
+                        Convert.ToDecimal(row["PurchasePrice"]),
                         Convert.ToInt32(row["StockQuantity"])
                     );
                 }
@@ -1535,7 +1419,8 @@ namespace Apple
             {
                 try
                 {
-                    _nudPrice.Value = Convert.ToDecimal(drv["SalePrice"]);
+                    // 🚀 ИСПРАВЛЕНО: Подставляем закупочную цену, а не цену продажи
+                    _nudPrice.Value = Convert.ToDecimal(drv["PurchasePrice"]);
                 }
                 catch { }
             }
@@ -1590,7 +1475,6 @@ namespace Apple
             MinimizeBox = false;
 
             int top = 15;
-
             Controls.Add(new Label { Text = "Покупатель:", Left = 20, Top = top, AutoSize = true });
             _cmbCustomer = new ComboBox { Left = 120, Top = top - 3, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
             _customers = new DataTable();
@@ -1719,7 +1603,6 @@ namespace Apple
             _nudPrice.Enabled = !isCancelled;
             _btnAddItem.Enabled = !isCancelled;
             _btnRemoveItem.Enabled = !isCancelled;
-
             if (isCancelled)
             {
                 _items.Clear();
@@ -1762,35 +1645,17 @@ namespace Apple
             }
 
             int productId;
-            try
-            {
-                productId = Convert.ToInt32(drv["Id"]);
-            }
-            catch
-            {
-                MessageBox.Show("Ошибка: некорректный товар. Выберите другой.", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            try { productId = Convert.ToInt32(drv["Id"]); }
+            catch { return; }
 
-            if (productId <= 0)
-            {
-                MessageBox.Show("Выберите корректный товар из списка!", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (productId <= 0) return;
 
             int stock = Convert.ToInt32(drv["StockQuantity"]);
             string productName = drv["DisplayName"].ToString() ?? "";
             int qty = (int)_nudQuantity.Value;
             decimal price = _nudPrice.Value;
 
-            if (qty <= 0)
-            {
-                MessageBox.Show("Количество должно быть больше нуля!", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (qty <= 0) return;
             if (stock <= 0)
             {
                 MessageBox.Show("Этот товар отсутствует на складе!", "Ошибка",

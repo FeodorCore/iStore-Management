@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -39,64 +38,90 @@ namespace Apple
             using (var cmd = connection.CreateCommand())
             {
                 cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS Categories (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL UNIQUE
-                );
-                CREATE TABLE IF NOT EXISTS Suppliers (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL,
-                    ContactPerson TEXT,
-                    Phone TEXT,
-                    Email TEXT,
-                    Address TEXT
-                );
-                CREATE TABLE IF NOT EXISTS Customers (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL,
-                    Type TEXT NOT NULL DEFAULT 'Розничный',
-                    Phone TEXT,
-                    Email TEXT,
-                    Address TEXT
-                );
-                CREATE TABLE IF NOT EXISTS Products (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL,
-                    CategoryId INTEGER,
-                    PurchasePrice REAL NOT NULL DEFAULT 0,
-                    SalePrice REAL NOT NULL DEFAULT 0,
-                    StockQuantity INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE SET NULL
-                );
-                CREATE TABLE IF NOT EXISTS Purchases (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ProductId INTEGER NOT NULL,
-                    SupplierId INTEGER NOT NULL,
-                    Quantity INTEGER NOT NULL,
-                    PurchasePrice REAL NOT NULL,
-                    PurchaseDate TEXT NOT NULL,
-                    FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE,
-                    FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id) ON DELETE CASCADE
-                );
-                CREATE TABLE IF NOT EXISTS Sales (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CustomerId INTEGER,
-                    SaleDate TEXT NOT NULL,
-                    Status TEXT NOT NULL DEFAULT 'Завершена',
-                    TotalAmount REAL NOT NULL DEFAULT 0,
-                    FOREIGN KEY (CustomerId) REFERENCES Customers(Id) ON DELETE SET NULL
-                );
-                CREATE TABLE IF NOT EXISTS SaleItems (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    SaleId INTEGER NOT NULL,
-                    ProductId INTEGER NOT NULL,
-                    Quantity INTEGER NOT NULL,
-                    Price REAL NOT NULL,
-                    FOREIGN KEY (SaleId) REFERENCES Sales(Id) ON DELETE CASCADE,
-                    FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE CASCADE
-                );
+                    CREATE TABLE IF NOT EXISTS Categories (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL UNIQUE
+                    );
+                    CREATE TABLE IF NOT EXISTS Suppliers (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL,
+                        ContactPerson TEXT,
+                        Phone TEXT,
+                        Email TEXT,
+                        Address TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS Customers (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL,
+                        Type TEXT NOT NULL DEFAULT 'Розничный',
+                        Phone TEXT,
+                        Email TEXT,
+                        Address TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS Products (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL,
+                        CategoryId INTEGER,
+                        PurchasePrice REAL NOT NULL DEFAULT 0,
+                        SalePrice REAL NOT NULL DEFAULT 0,
+                        StockQuantity INTEGER NOT NULL DEFAULT 0,
+                        IsActive INTEGER NOT NULL DEFAULT 1,
+                        FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE SET NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS Purchases (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ProductId INTEGER NOT NULL,
+                        SupplierId INTEGER NOT NULL,
+                        Quantity INTEGER NOT NULL,
+                        PurchasePrice REAL NOT NULL,
+                        PurchaseDate TEXT NOT NULL,
+                        Status TEXT NOT NULL DEFAULT 'Оформлена',
+                        FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE RESTRICT,
+                        FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id) ON DELETE RESTRICT
+                    );
+                    CREATE TABLE IF NOT EXISTS Sales (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CustomerId INTEGER,
+                        SaleDate TEXT NOT NULL,
+                        Status TEXT NOT NULL DEFAULT 'Завершена',
+                        TotalAmount REAL NOT NULL DEFAULT 0,
+                        FOREIGN KEY (CustomerId) REFERENCES Customers(Id) ON DELETE SET NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS SaleItems (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        SaleId INTEGER NOT NULL,
+                        ProductId INTEGER NOT NULL,
+                        Quantity INTEGER NOT NULL,
+                        Price REAL NOT NULL,
+                        CostPrice REAL NOT NULL DEFAULT 0,
+                        FOREIGN KEY (SaleId) REFERENCES Sales(Id) ON DELETE CASCADE,
+                        FOREIGN KEY (ProductId) REFERENCES Products(Id) ON DELETE RESTRICT
+                    );
                 ";
                 cmd.ExecuteNonQuery();
+            }
+
+            // 🚀 БЕЗОПАСНЫЕ МИГРАЦИИ (Добавляем новые поля в старые БД)
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Products') WHERE name='IsActive';";
+                if ((long)cmd.ExecuteScalar() == 0)
+                    Execute(connection, "ALTER TABLE Products ADD COLUMN IsActive INTEGER NOT NULL DEFAULT 1;");
+            }
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Purchases') WHERE name='Status';";
+                if ((long)cmd.ExecuteScalar() == 0)
+                    Execute(connection, "ALTER TABLE Purchases ADD COLUMN Status TEXT NOT NULL DEFAULT 'Оформлена';");
+            }
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SaleItems') WHERE name='CostPrice';";
+                if ((long)cmd.ExecuteScalar() == 0)
+                {
+                    Execute(connection, "ALTER TABLE SaleItems ADD COLUMN CostPrice REAL NOT NULL DEFAULT 0;");
+                    Execute(connection, "UPDATE SaleItems SET CostPrice = (SELECT PurchasePrice FROM Products WHERE Products.Id = SaleItems.ProductId);");
+                }
             }
 
             SeedDataIfEmpty(connection);
@@ -109,40 +134,19 @@ namespace Apple
             long count = (long)checkCmd.ExecuteScalar();
             if (count > 0) return;
 
-
-Execute(connection, "INSERT INTO Categories (Name) VALUES ('iPhone 16'), ('iPhone 17'), ('Аксессуары');");
-
-
-Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES
-    ('Apple Distribution International', 'Джонсон М.', '+1-408-996-1010', 'europe_supply@apple.com', 'Ирландия, г. Корк, Hollyhill Industrial Estate'),
-    ('ASBISc Enterprises', 'Костас А.', '+357-25-857-000', 'info@asbis.com', 'Кипр, г. Лимасол, ул. Архиепископа Макариоса III, 195'),
-    ('Ingram Micro Inc.', 'Смит Д.', '+1-714-566-1000', 'europe@ingrammicro.com', 'США, г. Ирвайн, ул. Алтон Парквей, 3351'),
-    ('Tech Data Europe', 'Мюллер Г.', '+49-89-247-37-0', 'info@techdata.eu', 'Германия, г. Мюнхен, ул. Ландсбергер, 312'),
-    ('Also Holding AG', 'Фишер Т.', '+41-41-749-20-00', 'contact@also.com', 'Швейцария, г. Эмменбрюке, ул. Зюрсеештрассе, 1'),
-    ('Westcoast Limited', 'Браун П.', '+44-118-912-1000', 'sales@westcoast.co.uk', 'Великобритания, г. Рединг, ул. Уитли Роуд, 1');");
-
-Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
-    ('5 Элемент', 'Сеть магазинов', '+375-29-555-66-77', 'info@5element.by', 'г. Минск, ул. Притыцкого, 100'),
-    ('iStore', 'Сеть магазинов', '+375-29-666-77-88', 'info@istore.by', 'г. Минск, пр. Победителей, 10'),
-    ('21 век', 'Сеть магазинов', '+375-29-777-88-99', 'info@21vek.by', 'г. Минск, ул. Немига, 12'),
-    ('Электросила', 'Розничный', '+375-29-888-99-00', 'info@electrosila.by', 'г. Гомель, ул. Советская, 5'),
-    ('ООО БелТрейд', 'Оптовый', '+375-29-333-44-55', 'info@beltrade.by', 'г. Гродно, ул. Ожешко, 8'),
-    ('ИП Иванов В.С.', 'Розничный', '+375-44-111-22-33', 'ivanov@mail.ru', 'г. Могилёв, ул. Первомайская, 3'),
-    ('Сидоров А.В.', 'Розничный', '+375-29-444-55-66', 'sidorov@mail.ru', 'г. Минск, ул. Коласа, 15'),
-    ('ООО ТехноМир', 'Оптовый', '+375-29-999-00-11', 'info@technomir.by', 'г. Брест, ул. Московская, 20');");
-
-Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity) VALUES
-    ('iPhone 16 128GB', 1, 2500.00, 3199.00, 0),
-    ('iPhone 16 256GB', 1, 2700.00, 3399.00, 0),
-    ('iPhone 16 512GB', 1, 3000.00, 3500.00, 0),
-    ('iPhone 16 Pro 256GB', 1, 3500.00, 4399.00, 0),
-    ('iPhone 16 Pro Max 512GB', 1, 4500.00, 5599.00, 0),
-    ('iPhone 17 128GB', 2, 2900.00, 3699.00, 0),
-    ('iPhone 17 Pro 256GB', 2, 4000.00, 4999.00, 0),
-    ('iPhone 17 Pro Max 1TB', 2, 5200.00, 6499.00, 0),
-    ('MagSafe чехол iPhone 16 Pro', 3, 30.00, 79.00, 0),
-    ('AirPods Pro 2', 3, 500.00, 749.00, 0),
-    ('Кабель USB-C Lightning 1м', 3, 15.00, 39.00, 0);");
+            Execute(connection, "INSERT INTO Categories (Name) VALUES ('iPhone 16'), ('iPhone 17'), ('Аксессуары');");
+            Execute(connection, @"INSERT INTO Suppliers (Name, ContactPerson, Phone, Email, Address) VALUES
+                ('Apple Distribution International', 'Джонсон М.', '+1-408-996-1010', 'europe_supply@apple.com', 'Ирландия, г. Корк, Hollyhill Industrial Estate'),
+                ('ASBISc Enterprises', 'Костас А.', '+357-25-857-000', 'info@asbis.com', 'Кипр, г. Лимасол, ул. Архиепископа Макариоса III, 195'),
+                ('Ingram Micro Inc.', 'Смит Д.', '+1-714-566-1000', 'europe@ingrammicro.com', 'США, г. Ирвайн, ул. Алтон Парквей, 3351');");
+            Execute(connection, @"INSERT INTO Customers (Name, Type, Phone, Email, Address) VALUES
+                ('5 Элемент', 'Сеть магазинов', '+375-29-555-66-77', 'info@5element.by', 'г. Минск, ул. Притыцкого, 100'),
+                ('iStore', 'Сеть магазинов', '+375-29-666-77-88', 'info@istore.by', 'г. Минск, пр. Победителей, 10'),
+                ('ИП Иванов В.С.', 'Розничный', '+375-44-111-22-33', 'ivanov@mail.ru', 'г. Могилёв, ул. Первомайская, 3');");
+            Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity, IsActive) VALUES
+                ('iPhone 16 128GB', 1, 2500.00, 3199.00, 0, 1),
+                ('iPhone 16 Pro 256GB', 1, 3500.00, 4399.00, 0, 1),
+                ('AirPods Pro 2', 3, 500.00, 749.00, 0, 1);");
         }
 
         private static void Execute(SqliteConnection connection, string sql)
@@ -150,6 +154,18 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var cmd = connection.CreateCommand();
             cmd.CommandText = sql;
             cmd.ExecuteNonQuery();
+        }
+
+        public static bool HasProductHistory(int productId)
+        {
+            using var connection = new SqliteConnection(ConnectionString);
+            connection.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"SELECT 
+                (SELECT COUNT(*) FROM Purchases WHERE ProductId = @id) + 
+                (SELECT COUNT(*) FROM SaleItems WHERE ProductId = @id);";
+            cmd.Parameters.AddWithValue("@id", productId);
+            return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
         }
 
         // ===================== CATEGORIES =====================
@@ -278,7 +294,13 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var cmd = connection.CreateCommand();
             cmd.CommandText = "DELETE FROM Suppliers WHERE Id = @id;";
             cmd.Parameters.AddWithValue("@id", id);
-            cmd.ExecuteNonQuery();
+            try { cmd.ExecuteNonQuery(); }
+            catch (SqliteException ex)
+            {
+                if (ex.SqliteErrorCode == 19 || ex.Message.Contains("FOREIGN KEY constraint failed"))
+                    throw new Exception("Нельзя удалить поставщика, так как есть история закупок.");
+                throw;
+            }
         }
 
         // ===================== CUSTOMERS =====================
@@ -349,7 +371,13 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var cmd = connection.CreateCommand();
             cmd.CommandText = "DELETE FROM Customers WHERE Id = @id;";
             cmd.Parameters.AddWithValue("@id", id);
-            cmd.ExecuteNonQuery();
+            try { cmd.ExecuteNonQuery(); }
+            catch (SqliteException ex)
+            {
+                if (ex.SqliteErrorCode == 19 || ex.Message.Contains("FOREIGN KEY constraint failed"))
+                    throw new Exception("Нельзя удалить покупателя, так как есть история продаж.");
+                throw;
+            }
         }
 
         // ===================== PRODUCTS =====================
@@ -360,7 +388,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var cmd = connection.CreateCommand();
             string sql = @"SELECT p.Id AS 'ID', p.Name AS 'Название', c.Name AS 'Категория',
                 p.PurchasePrice AS 'Закуп. цена', p.SalePrice AS 'Цена продажи', p.StockQuantity AS 'Остаток'
-                FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE 1=1";
+                FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE p.IsActive = 1";
             if (!string.IsNullOrWhiteSpace(search))
                 sql += " AND p.Name LIKE @search";
             if (minPrice.HasValue)
@@ -387,7 +415,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT Id, Name || ' (' || StockQuantity || ' шт.)' AS DisplayName, SalePrice, StockQuantity FROM Products WHERE StockQuantity > 0 ORDER BY Name;";
+            cmd.CommandText = "SELECT Id, Name || ' (' || StockQuantity || ' шт.)' AS DisplayName, SalePrice, PurchasePrice, StockQuantity FROM Products WHERE StockQuantity > 0 AND IsActive = 1 ORDER BY Name;";
             return ExecuteDataTable(cmd);
         }
 
@@ -396,7 +424,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT Id, Name || ' (остаток: ' || StockQuantity || ' шт.)' AS DisplayName, SalePrice, StockQuantity FROM Products ORDER BY Name;";
+            cmd.CommandText = "SELECT Id, Name || ' (остаток: ' || StockQuantity || ' шт.)' AS DisplayName, SalePrice, PurchasePrice, StockQuantity FROM Products WHERE IsActive = 1 ORDER BY Name;";
             return ExecuteDataTable(cmd);
         }
 
@@ -416,8 +444,8 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity)
-                VALUES (@name, @categoryId, @purchasePrice, @salePrice, @stock);";
+            cmd.CommandText = @"INSERT INTO Products (Name, CategoryId, PurchasePrice, SalePrice, StockQuantity, IsActive)
+                VALUES (@name, @categoryId, @purchasePrice, @salePrice, @stock, 1);";
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@categoryId", categoryId.HasValue ? (object)categoryId.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@purchasePrice", (double)purchasePrice);
@@ -444,10 +472,13 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
 
         public static void DeleteProduct(int id)
         {
+            if (HasProductHistory(id))
+                throw new Exception("Нельзя удалить товар, по которому были закупки или продажи!");
+
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM Products WHERE Id = @id;";
+            cmd.CommandText = "UPDATE Products SET IsActive = 0 WHERE Id = @id;"; // Soft Delete
             cmd.Parameters.AddWithValue("@id", id);
             cmd.ExecuteNonQuery();
         }
@@ -461,7 +492,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             string sql = @"SELECT pu.Id AS 'ID', p.Name AS 'Товар', s.Name AS 'Поставщик',
                 pu.Quantity AS 'Количество', pu.PurchasePrice AS 'Цена',
                 (pu.Quantity * pu.PurchasePrice) AS 'Сумма',
-                pu.PurchaseDate AS 'Дата'
+                pu.PurchaseDate AS 'Дата', pu.Status AS 'Статус'
                 FROM Purchases pu
                 JOIN Products p ON pu.ProductId = p.Id
                 JOIN Suppliers s ON pu.SupplierId = s.Id WHERE 1=1";
@@ -488,106 +519,111 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
 
         public static void AddPurchase(int productId, int supplierId, int quantity, decimal purchasePrice, DateTime purchaseDate)
         {
-            if (productId <= 0)
-                throw new ArgumentException("Некорректный ID товара. Выберите товар из списка.");
-            if (supplierId <= 0)
-                throw new ArgumentException("Некорректный ID поставщика. Выберите поставщика из списка.");
-            if (quantity <= 0)
-                throw new ArgumentException("Количество должно быть больше нуля.");
+            if (productId <= 0 || supplierId <= 0 || quantity <= 0)
+                throw new ArgumentException("Проверьте корректность введенных данных.");
 
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
-
-            using (var checkCmd = connection.CreateCommand())
-            {
-                checkCmd.CommandText = "SELECT COUNT(*) FROM Products WHERE Id = @id;";
-                checkCmd.Parameters.AddWithValue("@id", productId);
-                if (Convert.ToInt32(checkCmd.ExecuteScalar()) == 0)
-                    throw new ArgumentException($"Товар с ID {productId} не найден в базе данных.");
-            }
-            using (var checkCmd = connection.CreateCommand())
-            {
-                checkCmd.CommandText = "SELECT COUNT(*) FROM Suppliers WHERE Id = @id;";
-                checkCmd.Parameters.AddWithValue("@id", supplierId);
-                if (Convert.ToInt32(checkCmd.ExecuteScalar()) == 0)
-                    throw new ArgumentException($"Поставщик с ID {supplierId} не найден в базе данных.");
-            }
-
             using var transaction = connection.BeginTransaction();
             try
             {
-                using var cmd = connection.CreateCommand();
-                cmd.Transaction = transaction;
-                cmd.CommandText = @"INSERT INTO Purchases (ProductId, SupplierId, Quantity, PurchasePrice, PurchaseDate)
-                    VALUES (@productId, @supplierId, @quantity, @price, @date);";
-                cmd.Parameters.AddWithValue("@productId", productId);
-                cmd.Parameters.AddWithValue("@supplierId", supplierId);
-                cmd.Parameters.AddWithValue("@quantity", quantity);
-                cmd.Parameters.AddWithValue("@price", (double)purchasePrice);
-                cmd.Parameters.AddWithValue("@date", purchaseDate.ToString("yyyy-MM-dd"));
-                cmd.ExecuteNonQuery();
+                // 🚀 Получаем текущий остаток и среднюю цену для расчета WAC
+                using var cmdGet = connection.CreateCommand();
+                cmdGet.Transaction = transaction;
+                cmdGet.CommandText = "SELECT StockQuantity, PurchasePrice FROM Products WHERE Id = @id;";
+                cmdGet.Parameters.AddWithValue("@id", productId);
+                using var reader = cmdGet.ExecuteReader();
+                int currentStock = 0;
+                decimal currentAvgCost = 0;
+                if (reader.Read())
+                {
+                    currentStock = reader.GetInt32(0);
+                    currentAvgCost = Convert.ToDecimal(reader.GetDouble(1));
+                }
+                reader.Close();
 
-                using var cmd2 = connection.CreateCommand();
-                cmd2.Transaction = transaction;
-                cmd2.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
-                cmd2.Parameters.AddWithValue("@quantity", quantity);
-                cmd2.Parameters.AddWithValue("@id", productId);
-                cmd2.ExecuteNonQuery();
+                decimal totalOldCost = currentStock * currentAvgCost;
+                decimal totalNewCost = quantity * purchasePrice;
+                int newStock = currentStock + quantity;
+                decimal newAvgCost = newStock > 0 ? (totalOldCost + totalNewCost) / newStock : purchasePrice;
 
-                using var cmd3 = connection.CreateCommand();
-                cmd3.Transaction = transaction;
-                cmd3.CommandText = "UPDATE Products SET PurchasePrice = @price WHERE Id = @id;";
-                cmd3.Parameters.AddWithValue("@price", (double)purchasePrice);
-                cmd3.Parameters.AddWithValue("@id", productId);
-                cmd3.ExecuteNonQuery();
+                using var cmdInsert = connection.CreateCommand();
+                cmdInsert.Transaction = transaction;
+                cmdInsert.CommandText = @"INSERT INTO Purchases (ProductId, SupplierId, Quantity, PurchasePrice, PurchaseDate, Status)
+                    VALUES (@productId, @supplierId, @quantity, @price, @date, 'Оформлена');";
+                cmdInsert.Parameters.AddWithValue("@productId", productId);
+                cmdInsert.Parameters.AddWithValue("@supplierId", supplierId);
+                cmdInsert.Parameters.AddWithValue("@quantity", quantity);
+                cmdInsert.Parameters.AddWithValue("@price", (double)purchasePrice);
+                cmdInsert.Parameters.AddWithValue("@date", purchaseDate.ToString("yyyy-MM-dd"));
+                cmdInsert.ExecuteNonQuery();
+
+                using var cmdUpdate = connection.CreateCommand();
+                cmdUpdate.Transaction = transaction;
+                cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = @stock, PurchasePrice = @avgCost WHERE Id = @id;";
+                cmdUpdate.Parameters.AddWithValue("@stock", newStock);
+                cmdUpdate.Parameters.AddWithValue("@avgCost", (double)newAvgCost);
+                cmdUpdate.Parameters.AddWithValue("@id", productId);
+                cmdUpdate.ExecuteNonQuery();
 
                 transaction.Commit();
             }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            catch { transaction.Rollback(); throw; }
         }
 
-        public static void DeletePurchase(int id)
+        public static void ReturnPurchase(int id)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
-            using var selectCmd = connection.CreateCommand();
-            selectCmd.CommandText = "SELECT ProductId, Quantity FROM Purchases WHERE Id = @id;";
-            selectCmd.Parameters.AddWithValue("@id", id);
-
-            int productId = 0;
-            int quantity = 0;
-            using (var reader = selectCmd.ExecuteReader())
-            {
-                if (reader.Read())
-                {
-                    productId = reader.GetInt32(0);
-                    quantity = reader.GetInt32(1);
-                }
-                else
-                {
-                    return;
-                }
-            }
-
             using var transaction = connection.BeginTransaction();
-            using var cmd1 = connection.CreateCommand();
-            cmd1.Transaction = transaction;
-            cmd1.CommandText = "UPDATE Products SET StockQuantity = MAX(0, StockQuantity - @quantity) WHERE Id = @id;";
-            cmd1.Parameters.AddWithValue("@quantity", quantity);
-            cmd1.Parameters.AddWithValue("@id", productId);
-            cmd1.ExecuteNonQuery();
+            try
+            {
+                using var cmdSelect = connection.CreateCommand();
+                cmdSelect.Transaction = transaction;
+                cmdSelect.CommandText = "SELECT ProductId, Quantity, Status FROM Purchases WHERE Id = @id;";
+                cmdSelect.Parameters.AddWithValue("@id", id);
 
-            using var cmd2 = connection.CreateCommand();
-            cmd2.Transaction = transaction;
-            cmd2.CommandText = "DELETE FROM Purchases WHERE Id = @id;";
-            cmd2.Parameters.AddWithValue("@id", id);
-            cmd2.ExecuteNonQuery();
+                int productId = 0, quantity = 0;
+                string status = "";
+                using (var reader = cmdSelect.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        productId = reader.GetInt32(0);
+                        quantity = reader.GetInt32(1);
+                        status = reader.GetString(2);
+                    }
+                    else return;
+                }
 
-            transaction.Commit();
+                if (status != "Оформлена")
+                    throw new InvalidOperationException("Эта закупка уже отменена или возвращена.");
+
+                using var cmdStock = connection.CreateCommand();
+                cmdStock.Transaction = transaction;
+                cmdStock.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
+                cmdStock.Parameters.AddWithValue("@id", productId);
+                int currentStock = Convert.ToInt32(cmdStock.ExecuteScalar());
+
+                if (currentStock < quantity)
+                    throw new InvalidOperationException($"Невозможно вернуть закупку! Товар уже продан. На складе осталось: {currentStock} шт.");
+
+                using var cmdUpdateProd = connection.CreateCommand();
+                cmdUpdateProd.Transaction = transaction;
+                cmdUpdateProd.CommandText = "UPDATE Products SET StockQuantity = StockQuantity - @quantity WHERE Id = @id;";
+                cmdUpdateProd.Parameters.AddWithValue("@quantity", quantity);
+                cmdUpdateProd.Parameters.AddWithValue("@id", productId);
+                cmdUpdateProd.ExecuteNonQuery();
+
+                using var cmdUpdatePur = connection.CreateCommand();
+                cmdUpdatePur.Transaction = transaction;
+                cmdUpdatePur.CommandText = "UPDATE Purchases SET Status = 'Возврат' WHERE Id = @id;";
+                cmdUpdatePur.Parameters.AddWithValue("@id", id);
+                cmdUpdatePur.ExecuteNonQuery();
+
+                transaction.Commit();
+            }
+            catch { transaction.Rollback(); throw; }
         }
 
         // ===================== SALES =====================
@@ -625,10 +661,8 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
         {
             foreach (var item in items)
             {
-                if (item.ProductId <= 0)
-                    throw new ArgumentException($"Некорректный товар: {item.ProductName}. ID должен быть > 0.");
-                if (item.Quantity <= 0)
-                    throw new ArgumentException($"Некорректное количество для товара: {item.ProductName}.");
+                if (item.ProductId <= 0 || item.Quantity <= 0)
+                    throw new ArgumentException("Ошибка в позициях продажи.");
             }
 
             using var connection = new SqliteConnection(ConnectionString);
@@ -637,6 +671,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             try
             {
                 bool isCompleted = (status == "Завершена");
+                var costs = new Dictionary<int, decimal>();
 
                 if (isCompleted)
                 {
@@ -644,23 +679,21 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
                     {
                         using var checkCmd = connection.CreateCommand();
                         checkCmd.Transaction = transaction;
-                        checkCmd.CommandText = "SELECT StockQuantity FROM Products WHERE Id = @id;";
+                        checkCmd.CommandText = "SELECT StockQuantity, PurchasePrice FROM Products WHERE Id = @id;";
                         checkCmd.Parameters.AddWithValue("@id", item.ProductId);
-                        var stockResult = checkCmd.ExecuteScalar();
-                        if (stockResult == null || stockResult == DBNull.Value)
-                            throw new InvalidOperationException($"Товар '{item.ProductName}' (ID: {item.ProductId}) не найден в базе данных.");
-                        var stock = Convert.ToInt32(stockResult);
-                        if (stock < item.Quantity)
-                            throw new InvalidOperationException($"Недостаточно товара '{item.ProductName}'. В наличии: {stock}, требуется: {item.Quantity}");
+                        using var reader = checkCmd.ExecuteReader();
+                        if (!reader.Read()) throw new Exception("Товар не найден");
+                        int stock = reader.GetInt32(0);
+                        decimal cost = Convert.ToDecimal(reader.GetDouble(1));
+                        reader.Close();
+
+                        if (stock < item.Quantity) throw new Exception($"Недостаточно {item.ProductName}");
+                        costs[item.ProductId] = cost;
                     }
                 }
 
                 decimal total = 0;
-                if (isCompleted)
-                {
-                    foreach (var item in items)
-                        total += item.Price * item.Quantity;
-                }
+                if (isCompleted) foreach (var item in items) total += item.Price * item.Quantity;
 
                 using var cmd = connection.CreateCommand();
                 cmd.Transaction = transaction;
@@ -676,14 +709,16 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
                 {
                     foreach (var item in items)
                     {
+                        decimal costPrice = costs[item.ProductId];
                         using var itemCmd = connection.CreateCommand();
                         itemCmd.Transaction = transaction;
-                        itemCmd.CommandText = @"INSERT INTO SaleItems (SaleId, ProductId, Quantity, Price)
-                            VALUES (@saleId, @productId, @quantity, @price);";
+                        itemCmd.CommandText = @"INSERT INTO SaleItems (SaleId, ProductId, Quantity, Price, CostPrice)
+                            VALUES (@saleId, @productId, @quantity, @price, @costPrice);";
                         itemCmd.Parameters.AddWithValue("@saleId", saleId);
                         itemCmd.Parameters.AddWithValue("@productId", item.ProductId);
                         itemCmd.Parameters.AddWithValue("@quantity", item.Quantity);
                         itemCmd.Parameters.AddWithValue("@price", (double)item.Price);
+                        itemCmd.Parameters.AddWithValue("@costPrice", (double)costPrice);
                         itemCmd.ExecuteNonQuery();
 
                         using var stockCmd = connection.CreateCommand();
@@ -694,65 +729,35 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
                         stockCmd.ExecuteNonQuery();
                     }
                 }
-
                 transaction.Commit();
                 return saleId;
             }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            catch { transaction.Rollback(); throw; }
         }
 
         public static void DeleteSale(int id)
         {
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
+            using var cmdStatus = connection.CreateCommand();
+            cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
+            cmdStatus.Parameters.AddWithValue("@id", id);
+            string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
+
+            if (status == "Завершена")
+                throw new Exception("Удаление завершенной продажи запрещено учетной политикой.");
+
             using var transaction = connection.BeginTransaction();
             try
             {
-                using var cmdStatus = connection.CreateCommand();
-                cmdStatus.Transaction = transaction;
-                cmdStatus.CommandText = "SELECT Status FROM Sales WHERE Id = @id;";
-                cmdStatus.Parameters.AddWithValue("@id", id);
-                string status = cmdStatus.ExecuteScalar()?.ToString() ?? "";
-
-                if (status == "Завершена")
-                {
-                    using var cmdSelect = connection.CreateCommand();
-                    cmdSelect.Transaction = transaction;
-                    cmdSelect.CommandText = "SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @saleId;";
-                    cmdSelect.Parameters.AddWithValue("@saleId", id);
-                    using (var reader = cmdSelect.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            int productId = reader.GetInt32(0);
-                            int quantity = reader.GetInt32(1);
-                            using var cmdUpdate = connection.CreateCommand();
-                            cmdUpdate.Transaction = transaction;
-                            cmdUpdate.CommandText = "UPDATE Products SET StockQuantity = StockQuantity + @quantity WHERE Id = @id;";
-                            cmdUpdate.Parameters.AddWithValue("@quantity", quantity);
-                            cmdUpdate.Parameters.AddWithValue("@id", productId);
-                            cmdUpdate.ExecuteNonQuery();
-                        }
-                    }
-                }
-
                 using var cmdDelete = connection.CreateCommand();
                 cmdDelete.Transaction = transaction;
                 cmdDelete.CommandText = "DELETE FROM Sales WHERE Id = @id;";
                 cmdDelete.Parameters.AddWithValue("@id", id);
                 cmdDelete.ExecuteNonQuery();
-
                 transaction.Commit();
             }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            catch { transaction.Rollback(); throw; }
         }
 
         public static void ReturnSale(int id)
@@ -788,20 +793,14 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
                         cmdUpdate.ExecuteNonQuery();
                     }
                 }
-
                 using var cmdUpdateStatus = connection.CreateCommand();
                 cmdUpdateStatus.Transaction = transaction;
                 cmdUpdateStatus.CommandText = "UPDATE Sales SET Status = 'Возврат' WHERE Id = @id;";
                 cmdUpdateStatus.Parameters.AddWithValue("@id", id);
                 cmdUpdateStatus.ExecuteNonQuery();
-
                 transaction.Commit();
             }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            catch { transaction.Rollback(); throw; }
         }
 
         public static DataTable GetSaleItems(int saleId)
@@ -825,7 +824,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             string sql = @"SELECT p.Name AS 'Товар', c.Name AS 'Категория',
                 p.StockQuantity AS 'Остаток', p.PurchasePrice AS 'Закуп. цена',
                 p.SalePrice AS 'Цена продажи', (p.StockQuantity * p.SalePrice) AS 'Стоимость остатков'
-                FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE 1=1";
+                FROM Products p LEFT JOIN Categories c ON p.CategoryId = c.Id WHERE p.IsActive = 1";
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
             sql += " ORDER BY p.Name;";
@@ -864,7 +863,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var cmd = connection.CreateCommand();
             string sql = @"SELECT pu.PurchaseDate AS 'Дата', p.Name AS 'Товар', s.Name AS 'Поставщик',
                 pu.Quantity AS 'Кол-во', pu.PurchasePrice AS 'Цена',
-                (pu.Quantity * pu.PurchasePrice) AS 'Сумма'
+                (pu.Quantity * pu.PurchasePrice) AS 'Сумма', pu.Status AS 'Статус'
                 FROM Purchases pu
                 JOIN Products p ON pu.ProductId = p.Id
                 JOIN Suppliers s ON pu.SupplierId = s.Id
@@ -885,18 +884,19 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
             using var connection = new SqliteConnection(ConnectionString);
             connection.Open();
             using var cmd = connection.CreateCommand();
+            // 🚀 ИСПРАВЛЕНО: Прибыль теперь считается по ИСТОРИЧЕСКОЙ себестоимости (CostPrice)
             string sql = @"SELECT p.Name AS 'Товар',
                 SUM(si.Quantity) AS 'Продано шт.',
                 SUM(si.Quantity * si.Price) AS 'Выручка',
-                SUM(si.Quantity * p.PurchasePrice) AS 'Себестоимость',
-                SUM(si.Quantity * (si.Price - p.PurchasePrice)) AS 'Прибыль'
+                SUM(si.Quantity * si.CostPrice) AS 'Себестоимость',
+                SUM(si.Quantity * (si.Price - si.CostPrice)) AS 'Прибыль'
                 FROM Sales s
                 JOIN SaleItems si ON s.Id = si.SaleId
                 JOIN Products p ON si.ProductId = p.Id
                 WHERE date(s.SaleDate) BETWEEN date(@from) AND date(@to) AND s.Status = 'Завершена'";
             if (categoryId.HasValue && categoryId.Value > 0)
                 sql += " AND p.CategoryId = @categoryId";
-            sql += " GROUP BY p.Id, p.Name ORDER BY SUM(si.Quantity * (si.Price - p.PurchasePrice)) DESC;";
+            sql += " GROUP BY p.Id, p.Name ORDER BY SUM(si.Quantity * (si.Price - si.CostPrice)) DESC;";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("@from", dateFrom.ToString("yyyy-MM-dd"));
             cmd.Parameters.AddWithValue("@to", dateTo.ToString("yyyy-MM-dd"));
@@ -912,6 +912,7 @@ Execute(connection, @"INSERT INTO Products (Name, CategoryId, PurchasePrice, Sal
         public string ProductName { get; set; } = "";
         public int Quantity { get; set; }
         public decimal Price { get; set; }
+        public decimal CostPrice { get; set; }
         public decimal Total => Price * Quantity;
     }
 }
