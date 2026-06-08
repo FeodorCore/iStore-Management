@@ -105,15 +105,7 @@ SaleItems (Id, SaleId, ProductId, Quantity, Price, CostPrice)
 - `Sales.CustomerId` → `Customers.Id` (ON DELETE SET NULL)
 - `SaleItems.SaleId` → `Sales.Id` (ON DELETE CASCADE)
 - `SaleItems.ProductId` → `Products.Id` (ON DELETE RESTRICT)
-
-### 💡 Особенности БД
-
-- ✅ **WAC (Weighted Average Cost)** — при каждой закупке пересчитывается средневзвешенная себестоимость товара.
-- ✅ **Сохранение себестоимости в момент продажи** — `SaleItems.CostPrice` фиксирует цену на момент продажи для корректного расчёта прибыли.
-- ✅ **Soft Delete** — товары не удаляются физически, а помечаются как неактивные (`IsActive = 0`), чтобы сохранить финансовую историю.
-- ✅ **Авто-миграции** — при открытии старой БД приложение автоматически добавляет недостающие колонки (`IsActive`, `Status`, `CostPrice`).
-- ✅ **Seed-данные** — при первом запуске заполняются 10 категорий, 12 поставщиков, 20 покупателей и 28 моделей iPhone.
-
+  
 ---
 
 ## ⚙️ Функционал
