@@ -34,8 +34,6 @@ MVP десктопного приложения для автоматизаци�
 ```bash
 dotnet add package ClosedXML --version 0.105.0
 dotnet add package Microsoft.Data.Sqlite --version 10.0.8
-dotnet add package Microsoft.Data.SqlClient --version 7.0.1
-dotnet add package System.Data.SqlClient --version 4.9.1
 ```
 
 ### 📋 Установка через Package Manager Console (Visual Studio)
@@ -43,8 +41,6 @@ dotnet add package System.Data.SqlClient --version 4.9.1
 ```powershell
 Install-Package ClosedXML -Version 0.105.0
 Install-Package Microsoft.Data.Sqlite -Version 10.0.8
-Install-Package Microsoft.Data.SqlClient -Version 7.0.1
-Install-Package System.Data.SqlClient -Version 4.9.1
 ```
 ---
 
