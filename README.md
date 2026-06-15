@@ -140,14 +140,6 @@ SaleItems (Id, SaleId, ProductId, Quantity, Price, CostPrice)
 - .NET 10 SDK ([скачать](https://dotnet.microsoft.com/download/dotnet/10.0))
 - Visual Studio 2022 (17.12+) **или** VS Code / Rider
 
-### Публикация в EXE (self-contained)
-
-```bash
-dotnet publish Apple/Apple.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-```
-
-Готовый `.exe` появится в `Apple/bin/Release/net10.0-windows/win-x64/publish/`.
-
 ---
 
 ## 📁 Структура проекта
