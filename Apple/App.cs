@@ -17,8 +17,6 @@ namespace Apple
         private DataTable? _currentReceiptData;
         private string _currentReceiptCustomer = "";
         private int _currentReceiptSaleId = 0;
-
-        // Название текущего отчёта — будет в заголовке Excel
         private string _currentReportTitle = "Отчёт";
 
         public App()
@@ -994,7 +992,6 @@ namespace Apple
                 return;
             }
 
-            // Формируем имя файла из названия отчёта
             string safeFileName = SanitizeFileName(_currentReportTitle);
 
             using var dialog = new SaveFileDialog
@@ -1020,26 +1017,20 @@ namespace Apple
             }
         }
 
-        /// <summary>
-        /// Экспорт в настоящий Excel (.xlsx) через ClosedXML.
-        /// </summary>
         private static void ExportToExcel(DataGridView dgv, string filePath, string reportTitle)
         {
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add(reportTitle.Length > 31 ? reportTitle.Substring(0, 31) : reportTitle);
 
-            // --- Строка 1: Заголовок отчёта (крупный, жирный) ---
             ws.Cell(1, 1).Value = reportTitle;
             ws.Cell(1, 1).Style.Font.Bold = true;
             ws.Cell(1, 1).Style.Font.FontSize = 16;
             ws.Cell(1, 1).Style.Font.FontColor = XLColor.DarkBlue;
 
-            // --- Строка 2: Дата формирования ---
             ws.Cell(2, 1).Value = $"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}";
             ws.Cell(2, 1).Style.Font.FontColor = XLColor.Gray;
             ws.Cell(2, 1).Style.Font.Italic = true;
 
-            // --- Строка 4: Заголовки таблицы (синий фон, белый текст) ---
             int headerRow = 4;
             int colCount = dgv.Columns.Count;
 
@@ -1054,7 +1045,6 @@ namespace Apple
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             }
 
-            // --- Строки данных (с 5-й) ---
             int dataRow = headerRow + 1;
             for (int r = 0; r < dgv.Rows.Count; r++)
             {
@@ -1099,22 +1089,18 @@ namespace Apple
                         cell.Value = val.ToString();
                     }
 
-                    // Границы
                     cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     cell.Style.Border.OutsideBorderColor = XLColor.LightGray;
 
-                    // Зебра — чередование строк
                     if (r % 2 == 1)
                         cell.Style.Fill.BackgroundColor = XLColor.AliceBlue;
                 }
                 dataRow++;
             }
 
-            // --- Объединяем заголовок на всю ширину таблицы ---
             if (colCount > 1)
                 ws.Range(1, 1, 1, colCount).Merge();
 
-            // --- Автоширина колонок ---
             ws.Columns().AdjustToContents();
             foreach (var col in ws.Columns(1, colCount))
             {
@@ -1122,23 +1108,17 @@ namespace Apple
                 if (col.Width > 50) col.Width = 50;
             }
 
-            // --- Автофильтр на заголовках ---
             int lastDataRow = dataRow - 1;
             if (lastDataRow >= headerRow)
             {
                 ws.Range(headerRow, 1, lastDataRow, colCount).SetAutoFilter();
             }
 
-            // --- Закрепляем строку заголовков ---
             ws.SheetView.FreezeRows(headerRow);
 
-            // --- Сохраняем ---
             workbook.SaveAs(filePath);
         }
 
-        /// <summary>
-        /// Убирает недопустимые символы из имени файла.
-        /// </summary>
         private static string SanitizeFileName(string fileName)
         {
             var invalid = Path.GetInvalidFileNameChars();
@@ -1213,21 +1193,36 @@ namespace Apple
         public ProductForm()
         {
             Text = "Товар";
-            Width = 400;
-            Height = 290;
+            Width = 420;
+            Height = 310;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            int top = 15;
-            Controls.Add(new Label { Text = "Название:", Left = 20, Top = top, AutoSize = true });
-            _txtName = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-            Controls.Add(_txtName);
-            top += 35;
+            var mainTable = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 6,
+                Padding = new Padding(15),
+                AutoScroll = true
+            };
 
-            Controls.Add(new Label { Text = "Категория:", Left = 20, Top = top, AutoSize = true });
-            _cmbCategory = new ComboBox { Left = 140, Top = top - 3, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            for (int i = 0; i < 4; i++)
+                mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 15));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+            mainTable.Controls.Add(CreateLabel("Название:"), 0, 0);
+            _txtName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_txtName, 1, 0);
+
+            mainTable.Controls.Add(CreateLabel("Категория:"), 0, 1);
+            _cmbCategory = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 3, 0, 0) };
             var safeDt = new DataTable();
             safeDt.Columns.Add("Id", typeof(int));
             safeDt.Columns.Add("Name", typeof(string));
@@ -1235,32 +1230,51 @@ namespace Apple
             {
                 var source = DatabaseHelper.GetCategoriesForCombo();
                 foreach (DataRow row in source.Rows)
-                {
                     safeDt.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"].ToString());
-                }
             }
             catch { }
             _cmbCategory.DataSource = safeDt;
             _cmbCategory.DisplayMember = "Name";
             _cmbCategory.ValueMember = "Id";
-            Controls.Add(_cmbCategory);
-            top += 35;
+            mainTable.Controls.Add(_cmbCategory, 1, 1);
 
-            Controls.Add(new Label { Text = "Закуп. цена:", Left = 20, Top = top, AutoSize = true });
-            _nudPurchasePrice = new NumericUpDown { Left = 140, Top = top - 3, Width = 220, Maximum = 9999999, DecimalPlaces = 2 };
-            Controls.Add(_nudPurchasePrice);
-            top += 35;
+            mainTable.Controls.Add(CreateLabel("Закуп. цена:"), 0, 2);
+            _nudPurchasePrice = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999999, DecimalPlaces = 2, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_nudPurchasePrice, 1, 2);
 
-            Controls.Add(new Label { Text = "Цена продажи:", Left = 20, Top = top, AutoSize = true });
-            _nudSalePrice = new NumericUpDown { Left = 140, Top = top - 3, Width = 220, Maximum = 9999999, DecimalPlaces = 2 };
-            Controls.Add(_nudSalePrice);
-            top += 40;
+            mainTable.Controls.Add(CreateLabel("Цена продажи:"), 0, 3);
+            _nudSalePrice = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999999, DecimalPlaces = 2, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_nudSalePrice, 1, 3);
 
-            var btnOk = new Button { Text = "OK", Left = 190, Top = top, Width = 80, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Отмена", Left = 280, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
-            Controls.AddRange(new Control[] { btnOk, btnCancel });
+            var btnOk = new Button { Text = "OK", Width = 90, Height = 35, DialogResult = DialogResult.OK, Margin = new Padding(3) };
+            var btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, DialogResult = DialogResult.Cancel, Margin = new Padding(3) };
+
+            var btnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                Anchor = AnchorStyles.None
+            };
+            btnPanel.Controls.Add(btnCancel);
+            btnPanel.Controls.Add(btnOk);
+            mainTable.SetColumnSpan(btnPanel, 2);
+            mainTable.Controls.Add(btnPanel, 0, 5);
+
+            Controls.Add(mainTable);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
+        }
+
+        private Label CreateLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false,
+                Margin = new Padding(0, 5, 0, 0)
+            };
         }
 
         public void LoadProduct(int id, string name, int? categoryId, decimal purchasePrice, decimal salePrice)
@@ -1301,35 +1315,74 @@ namespace Apple
         public SupplierForm()
         {
             Text = "Поставщик";
-            Width = 400;
-            Height = 310;
+            Width = 440;
+            Height = 340;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            int top = 15;
-            var labels = new[] { "Название:", "Контактное лицо:", "Телефон:", "Email:", "Адрес:" };
-            var boxes = new TextBox[5];
-            for (int i = 0; i < labels.Length; i++)
+            var mainTable = new TableLayoutPanel
             {
-                Controls.Add(new Label { Text = labels[i], Left = 20, Top = top, AutoSize = true });
-                boxes[i] = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-                Controls.Add(boxes[i]);
-                top += 35;
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 7,
+                Padding = new Padding(15),
+                AutoScroll = true
+            };
+
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            for (int i = 0; i < 5; i++)
+                mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 15));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+            string[] labels = { "Название:", "Контактное лицо:", "Телефон:", "Email:", "Адрес:" };
+            TextBox[] boxes = new TextBox[5];
+
+            for (int i = 0; i < 5; i++)
+            {
+                mainTable.Controls.Add(CreateLabel(labels[i]), 0, i);
+                boxes[i] = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+                mainTable.Controls.Add(boxes[i], 1, i);
             }
+
             _txtName = boxes[0];
             _txtContact = boxes[1];
             _txtPhone = boxes[2];
             _txtEmail = boxes[3];
             _txtAddress = boxes[4];
-            top += 5;
 
-            var btnOk = new Button { Text = "OK", Left = 190, Top = top, Width = 80, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Отмена", Left = 280, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
-            Controls.AddRange(new Control[] { btnOk, btnCancel });
+            var btnOk = new Button { Text = "OK", Width = 90, Height = 35, DialogResult = DialogResult.OK, Margin = new Padding(3) };
+            var btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, DialogResult = DialogResult.Cancel, Margin = new Padding(3) };
+
+            var btnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft
+            };
+            btnPanel.Controls.Add(btnCancel);
+            btnPanel.Controls.Add(btnOk);
+            mainTable.SetColumnSpan(btnPanel, 2);
+            mainTable.Controls.Add(btnPanel, 0, 6);
+
+            Controls.Add(mainTable);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
+        }
+
+        private Label CreateLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false,
+                Margin = new Padding(0, 5, 0, 0)
+            };
         }
 
         public void LoadData(string name, string contact, string phone, string email, string address)
@@ -1360,46 +1413,80 @@ namespace Apple
         public CustomerForm()
         {
             Text = "Покупатель";
-            Width = 400;
-            Height = 310;
+            Width = 440;
+            Height = 340;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            int top = 15;
-            Controls.Add(new Label { Text = "Имя/Название:", Left = 20, Top = top, AutoSize = true });
-            _txtName = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-            Controls.Add(_txtName);
-            top += 35;
+            var mainTable = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 7,
+                Padding = new Padding(15),
+                AutoScroll = true
+            };
 
-            Controls.Add(new Label { Text = "Тип:", Left = 20, Top = top, AutoSize = true });
-            _cmbType = new ComboBox { Left = 140, Top = top - 3, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            for (int i = 0; i < 5; i++)
+                mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 15));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+            mainTable.Controls.Add(CreateLabel("Имя/Название:"), 0, 0);
+            _txtName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_txtName, 1, 0);
+
+            mainTable.Controls.Add(CreateLabel("Тип:"), 0, 1);
+            _cmbType = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 3, 0, 0) };
             _cmbType.Items.AddRange(new object[] { "Розничный", "Оптовый" });
             if (_cmbType.Items.Count > 0) _cmbType.SelectedIndex = 0;
-            Controls.Add(_cmbType);
-            top += 35;
+            mainTable.Controls.Add(_cmbType, 1, 1);
 
-            Controls.Add(new Label { Text = "Телефон:", Left = 20, Top = top, AutoSize = true });
-            _txtPhone = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-            Controls.Add(_txtPhone);
-            top += 35;
+            mainTable.Controls.Add(CreateLabel("Телефон:"), 0, 2);
+            _txtPhone = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_txtPhone, 1, 2);
 
-            Controls.Add(new Label { Text = "Email:", Left = 20, Top = top, AutoSize = true });
-            _txtEmail = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-            Controls.Add(_txtEmail);
-            top += 35;
+            mainTable.Controls.Add(CreateLabel("Email:"), 0, 3);
+            _txtEmail = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_txtEmail, 1, 3);
 
-            Controls.Add(new Label { Text = "Адрес:", Left = 20, Top = top, AutoSize = true });
-            _txtAddress = new TextBox { Left = 140, Top = top - 3, Width = 220 };
-            Controls.Add(_txtAddress);
-            top += 40;
+            mainTable.Controls.Add(CreateLabel("Адрес:"), 0, 4);
+            _txtAddress = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_txtAddress, 1, 4);
 
-            var btnOk = new Button { Text = "OK", Left = 190, Top = top, Width = 80, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Отмена", Left = 280, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
-            Controls.AddRange(new Control[] { btnOk, btnCancel });
+            var btnOk = new Button { Text = "OK", Width = 90, Height = 35, DialogResult = DialogResult.OK, Margin = new Padding(3) };
+            var btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, DialogResult = DialogResult.Cancel, Margin = new Padding(3) };
+
+            var btnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft
+            };
+            btnPanel.Controls.Add(btnCancel);
+            btnPanel.Controls.Add(btnOk);
+            mainTable.SetColumnSpan(btnPanel, 2);
+            mainTable.Controls.Add(btnPanel, 0, 6);
+
+            Controls.Add(mainTable);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
+        }
+
+        private Label CreateLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false,
+                Margin = new Padding(0, 5, 0, 0)
+            };
         }
 
         public void LoadData(string name, string type, string phone, string email, string address)
@@ -1448,16 +1535,30 @@ namespace Apple
         public PurchaseForm()
         {
             Text = "Новая закупка";
-            Width = 420;
-            Height = 320;
+            Width = 450;
+            Height = 340;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            int top = 15;
-            Controls.Add(new Label { Text = "Товар:", Left = 20, Top = top, AutoSize = true });
-            _cmbProduct = new ComboBox { Left = 140, Top = top - 3, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
+            var mainTable = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 7,
+                Padding = new Padding(15),
+                AutoScroll = true
+            };
+
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            for (int i = 0; i < 5; i++)
+                mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 15));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
             _products = new DataTable();
             _products.Columns.Add("Id", typeof(int));
             _products.Columns.Add("DisplayName", typeof(string));
@@ -1479,15 +1580,7 @@ namespace Apple
                 }
             }
             catch { }
-            _cmbProduct.DataSource = _products;
-            _cmbProduct.DisplayMember = "DisplayName";
-            _cmbProduct.ValueMember = "Id";
-            _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
-            Controls.Add(_cmbProduct);
-            top += 35;
 
-            Controls.Add(new Label { Text = "Поставщик:", Left = 20, Top = top, AutoSize = true });
-            _cmbSupplier = new ComboBox { Left = 140, Top = top - 3, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
             _suppliers = new DataTable();
             _suppliers.Columns.Add("Id", typeof(int));
             _suppliers.Columns.Add("Name", typeof(string));
@@ -1495,35 +1588,51 @@ namespace Apple
             {
                 var sourceSuppliers = DatabaseHelper.GetSuppliersForCombo();
                 foreach (DataRow row in sourceSuppliers.Rows)
-                {
                     _suppliers.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"].ToString());
-                }
             }
             catch { }
+
+            mainTable.Controls.Add(CreateLabel("Товар:"), 0, 0);
+            _cmbProduct = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 3, 0, 0) };
+            _cmbProduct.DataSource = _products;
+            _cmbProduct.DisplayMember = "DisplayName";
+            _cmbProduct.ValueMember = "Id";
+            _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
+            mainTable.Controls.Add(_cmbProduct, 1, 0);
+
+            mainTable.Controls.Add(CreateLabel("Поставщик:"), 0, 1);
+            _cmbSupplier = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 3, 0, 0) };
             _cmbSupplier.DataSource = _suppliers;
             _cmbSupplier.DisplayMember = "Name";
             _cmbSupplier.ValueMember = "Id";
-            Controls.Add(_cmbSupplier);
-            top += 35;
+            mainTable.Controls.Add(_cmbSupplier, 1, 1);
 
-            Controls.Add(new Label { Text = "Количество:", Left = 20, Top = top, AutoSize = true });
-            _nudQuantity = new NumericUpDown { Left = 140, Top = top - 3, Width = 240, Maximum = 999999, Minimum = 1, Value = 1 };
-            Controls.Add(_nudQuantity);
-            top += 35;
+            mainTable.Controls.Add(CreateLabel("Количество:"), 0, 2);
+            _nudQuantity = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 999999, Minimum = 1, Value = 1, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_nudQuantity, 1, 2);
 
-            Controls.Add(new Label { Text = "Цена закупки:", Left = 20, Top = top, AutoSize = true });
-            _nudPrice = new NumericUpDown { Left = 140, Top = top - 3, Width = 240, Maximum = 9999999, DecimalPlaces = 2 };
-            Controls.Add(_nudPrice);
-            top += 35;
+            mainTable.Controls.Add(CreateLabel("Цена закупки:"), 0, 3);
+            _nudPrice = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999999, DecimalPlaces = 2, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_nudPrice, 1, 3);
 
-            Controls.Add(new Label { Text = "Дата:", Left = 20, Top = top, AutoSize = true });
-            _dtpDate = new DateTimePicker { Left = 140, Top = top - 3, Width = 240, Format = DateTimePickerFormat.Short };
-            Controls.Add(_dtpDate);
-            top += 40;
+            mainTable.Controls.Add(CreateLabel("Дата:"), 0, 4);
+            _dtpDate = new DateTimePicker { Dock = DockStyle.Fill, Format = DateTimePickerFormat.Short, Margin = new Padding(0, 3, 0, 0) };
+            mainTable.Controls.Add(_dtpDate, 1, 4);
 
-            var btnOk = new Button { Text = "OK", Left = 210, Top = top, Width = 80, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Отмена", Left = 300, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
-            Controls.AddRange(new Control[] { btnOk, btnCancel });
+            var btnOk = new Button { Text = "OK", Width = 90, Height = 35, DialogResult = DialogResult.OK, Margin = new Padding(3) };
+            var btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, DialogResult = DialogResult.Cancel, Margin = new Padding(3) };
+
+            var btnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft
+            };
+            btnPanel.Controls.Add(btnCancel);
+            btnPanel.Controls.Add(btnOk);
+            mainTable.SetColumnSpan(btnPanel, 2);
+            mainTable.Controls.Add(btnPanel, 0, 6);
+
+            Controls.Add(mainTable);
             AcceptButton = btnOk;
             CancelButton = btnCancel;
 
@@ -1531,14 +1640,23 @@ namespace Apple
             if (_cmbSupplier.Items.Count > 0) _cmbSupplier.SelectedIndex = 0;
         }
 
+        private Label CreateLabel(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false,
+                Margin = new Padding(0, 5, 0, 0)
+            };
+        }
+
         private void CmbProduct_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (_cmbProduct.SelectedItem is DataRowView drv)
             {
-                try
-                {
-                    _nudPrice.Value = Convert.ToDecimal(drv["PurchasePrice"]);
-                }
+                try { _nudPrice.Value = Convert.ToDecimal(drv["PurchasePrice"]); }
                 catch { }
             }
         }
@@ -1584,16 +1702,42 @@ namespace Apple
         public SaleForm()
         {
             Text = "Новая продажа";
-            Width = 700;
-            Height = 550;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            Width = 800;
+            Height = 620;
+            MinimumSize = new Size(650, 500);
+            FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            int top = 15;
-            Controls.Add(new Label { Text = "Покупатель:", Left = 20, Top = top, AutoSize = true });
-            _cmbCustomer = new ComboBox { Left = 120, Top = top - 3, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 4,
+                Padding = new Padding(10)
+            };
+
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
+            // === Row 0: Customer, Date, Status ===
+            var topRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 6,
+                RowCount = 1
+            };
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
+            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+
+            topRow.Controls.Add(new Label { Text = "Покупатель:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
             _customers = new DataTable();
             _customers.Columns.Add("Id", typeof(int));
             _customers.Columns.Add("Name", typeof(string));
@@ -1602,31 +1746,47 @@ namespace Apple
             {
                 var sourceCustomers = DatabaseHelper.GetCustomersForCombo();
                 foreach (DataRow row in sourceCustomers.Rows)
-                {
                     _customers.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"].ToString());
-                }
             }
             catch { }
+            _cmbCustomer = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _cmbCustomer.DataSource = _customers;
             _cmbCustomer.DisplayMember = "Name";
             _cmbCustomer.ValueMember = "Id";
             if (_cmbCustomer.Items.Count > 0) _cmbCustomer.SelectedIndex = 0;
-            Controls.Add(_cmbCustomer);
+            topRow.Controls.Add(_cmbCustomer, 1, 0);
 
-            Controls.Add(new Label { Text = "Дата:", Left = 340, Top = top, AutoSize = true });
-            _dtpDate = new DateTimePicker { Left = 380, Top = top - 3, Width = 130, Format = DateTimePickerFormat.Short };
-            Controls.Add(_dtpDate);
+            topRow.Controls.Add(new Label { Text = "Дата:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 2, 0);
+            _dtpDate = new DateTimePicker { Dock = DockStyle.Fill, Format = DateTimePickerFormat.Short };
+            topRow.Controls.Add(_dtpDate, 3, 0);
 
-            Controls.Add(new Label { Text = "Статус:", Left = 530, Top = top, AutoSize = true });
-            _cmbStatus = new ComboBox { Left = 580, Top = top - 3, Width = 90, DropDownStyle = ComboBoxStyle.DropDownList };
+            topRow.Controls.Add(new Label { Text = "Статус:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 4, 0);
+            _cmbStatus = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _cmbStatus.Items.AddRange(new object[] { "Завершена", "Отменена" });
             if (_cmbStatus.Items.Count > 0) _cmbStatus.SelectedIndex = 0;
             _cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
-            Controls.Add(_cmbStatus);
-            top += 35;
+            topRow.Controls.Add(_cmbStatus, 5, 0);
 
-            Controls.Add(new Label { Text = "Товар:", Left = 20, Top = top, AutoSize = true });
-            _cmbProduct = new ComboBox { Left = 70, Top = top - 3, Width = 250, DropDownStyle = ComboBoxStyle.DropDownList };
+            mainLayout.Controls.Add(topRow, 0, 0);
+
+            // === Row 1: Product, Qty, Price, Add Button ===
+            var addRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 8,
+                RowCount = 1
+            };
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 55));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
+            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
+
+            addRow.Controls.Add(new Label { Text = "Товар:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
+
             _products = new DataTable();
             _products.Columns.Add("Id", typeof(int));
             _products.Columns.Add("DisplayName", typeof(string));
@@ -1646,36 +1806,41 @@ namespace Apple
                 }
             }
             catch { }
+            _cmbProduct = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _cmbProduct.DataSource = _products;
             _cmbProduct.DisplayMember = "DisplayName";
             _cmbProduct.ValueMember = "Id";
             _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
-            Controls.Add(_cmbProduct);
+            addRow.Controls.Add(_cmbProduct, 1, 0);
 
-            Controls.Add(new Label { Text = "Кол-во:", Left = 335, Top = top, AutoSize = true });
-            _nudQuantity = new NumericUpDown { Left = 395, Top = top - 3, Width = 60, Maximum = 9999, Minimum = 1, Value = 1 };
-            Controls.Add(_nudQuantity);
+            addRow.Controls.Add(new Label { Text = "Кол-во:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 2, 0);
+            _nudQuantity = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999, Minimum = 1, Value = 1 };
+            addRow.Controls.Add(_nudQuantity, 3, 0);
 
-            Controls.Add(new Label { Text = "Цена:", Left = 465, Top = top, AutoSize = true });
-            _nudPrice = new NumericUpDown { Left = 505, Top = top - 3, Width = 80, Maximum = 9999999, DecimalPlaces = 2 };
-            Controls.Add(_nudPrice);
+            addRow.Controls.Add(new Label { Text = "Цена:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 4, 0);
+            _nudPrice = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999999, DecimalPlaces = 2 };
+            addRow.Controls.Add(_nudPrice, 5, 0);
 
-            _btnAddItem = new Button { Text = "Добавить", Left = 595, Top = top - 5, Width = 75, Height = 28 };
+            // Empty spacer
+            addRow.Controls.Add(new Panel(), 6, 0);
+
+            _btnAddItem = new Button { Text = "➕ Добавить", Dock = DockStyle.Fill };
             _btnAddItem.Click += BtnAddItem_Click;
-            Controls.Add(_btnAddItem);
-            top += 40;
+            addRow.Controls.Add(_btnAddItem, 7, 0);
 
+            mainLayout.Controls.Add(addRow, 0, 1);
+
+            // === Row 2: DataGridView (растягивается) ===
             _dgvItems = new DataGridView
             {
-                Left = 20,
-                Top = top,
-                Width = 640,
-                Height = 250,
+                Dock = DockStyle.Fill,
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = SystemColors.Window,
+                RowHeadersVisible = false
             };
             _dgvItems.Columns.Add("ProductId", "ID");
             _dgvItems.Columns["ProductId"]!.Visible = false;
@@ -1683,33 +1848,45 @@ namespace Apple
             _dgvItems.Columns.Add("Quantity", "Количество");
             _dgvItems.Columns.Add("Price", "Цена");
             _dgvItems.Columns.Add("Total", "Сумма");
-            Controls.Add(_dgvItems);
-            top += 260;
+            mainLayout.Controls.Add(_dgvItems, 0, 2);
 
-            _btnRemoveItem = new Button { Text = "Удалить позицию", Left = 20, Top = top, Width = 130 };
+            // === Row 3: Bottom panel (Remove, Total, OK, Cancel) ===
+            var bottomRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1
+            };
+            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+
+            _btnRemoveItem = new Button { Text = "❌ Удалить позицию", Dock = DockStyle.Fill };
             _btnRemoveItem.Click += BtnRemoveItem_Click;
-            Controls.Add(_btnRemoveItem);
+            bottomRow.Controls.Add(_btnRemoveItem, 0, 0);
 
             _lblTotal = new Label
             {
                 Text = "ИТОГО: 0.00 руб.",
-                Left = 450,
-                Top = top + 5,
-                AutoSize = true,
-                Font = new Font("Arial", 12, FontStyle.Bold)
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = new Font("Arial", 14, FontStyle.Bold),
+                ForeColor = Color.DarkGreen
             };
-            Controls.Add(_lblTotal);
-            top += 45;
+            bottomRow.Controls.Add(_lblTotal, 1, 0);
 
-            _btnOk = new Button { Text = "Продать", Left = 490, Top = top, Width = 80 };
+            _btnOk = new Button { Text = "✅ Продать", Dock = DockStyle.Fill };
             _btnOk.Click += BtnOk_Click;
-            Controls.Add(_btnOk);
+            bottomRow.Controls.Add(_btnOk, 2, 0);
 
-            _btnCancel = new Button { Text = "Отмена", Left = 580, Top = top, Width = 80, DialogResult = DialogResult.Cancel };
-            Controls.Add(_btnCancel);
+            _btnCancel = new Button { Text = "Отмена", Dock = DockStyle.Fill, DialogResult = DialogResult.Cancel };
+            bottomRow.Controls.Add(_btnCancel, 3, 0);
+
+            mainLayout.Controls.Add(bottomRow, 0, 3);
+
+            Controls.Add(mainLayout);
             CancelButton = _btnCancel;
-
-            if (_cmbProduct.Items.Count > 0) _cmbProduct.SelectedIndex = 0;
         }
 
         private void CmbStatus_SelectedIndexChanged(object? sender, EventArgs e)
@@ -1744,10 +1921,7 @@ namespace Apple
         {
             if (_cmbProduct.SelectedItem is DataRowView drv)
             {
-                try
-                {
-                    _nudPrice.Value = Convert.ToDecimal(drv["SalePrice"]);
-                }
+                try { _nudPrice.Value = Convert.ToDecimal(drv["SalePrice"]); }
                 catch { }
             }
         }

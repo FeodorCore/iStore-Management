@@ -294,6 +294,8 @@
             flowLayoutPanel1.Controls.Add(button2);
             flowLayoutPanel1.Controls.Add(button3);
             flowLayoutPanel1.Dock = DockStyle.Fill;
+            flowLayoutPanel1.AutoScroll = true;
+            flowLayoutPanel1.WrapContents = false;
             flowLayoutPanel1.Location = new Point(3, 374);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
             flowLayoutPanel1.Size = new Size(1013, 39);
@@ -357,6 +359,10 @@
             comboBox1.Size = new Size(121, 23);
             comboBox1.TabIndex = 9;
 
+            button1.AutoSize = true;
+            button1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button1.MinimumSize = new Size(70, 30);
+            button1.Padding = new Padding(8, 0, 8, 0);
             button1.Location = new Point(724, 3);
             button1.Name = "button1";
             button1.Size = new Size(70, 30);
@@ -364,6 +370,10 @@
             button1.Text = "Добавить";
             button1.UseVisualStyleBackColor = true;
 
+            button2.AutoSize = true;
+            button2.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button2.MinimumSize = new Size(70, 30);
+            button2.Padding = new Padding(8, 0, 8, 0);
             button2.Location = new Point(800, 3);
             button2.Name = "button2";
             button2.Size = new Size(70, 30);
@@ -371,6 +381,10 @@
             button2.Text = "Править";
             button2.UseVisualStyleBackColor = true;
 
+            button3.AutoSize = true;
+            button3.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button3.MinimumSize = new Size(70, 30);
+            button3.Padding = new Padding(8, 0, 8, 0);
             button3.Location = new Point(876, 3);
             button3.Name = "button3";
             button3.Size = new Size(70, 30);
@@ -436,6 +450,8 @@
             flowLayoutPanel2.Controls.Add(btnEditCategory);
             flowLayoutPanel2.Controls.Add(btnDeleteCategory);
             flowLayoutPanel2.Dock = DockStyle.Fill;
+            flowLayoutPanel2.AutoScroll = true;
+            flowLayoutPanel2.WrapContents = false;
             flowLayoutPanel2.Location = new Point(3, 374);
             flowLayoutPanel2.Name = "flowLayoutPanel2";
             flowLayoutPanel2.Size = new Size(1013, 39);
@@ -455,6 +471,10 @@
             textBoxCatSearch.Size = new Size(200, 23);
             textBoxCatSearch.TabIndex = 1;
 
+            btnAddCategory.AutoSize = true;
+            btnAddCategory.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnAddCategory.MinimumSize = new Size(70, 30);
+            btnAddCategory.Padding = new Padding(8, 0, 8, 0);
             btnAddCategory.Location = new Point(259, 3);
             btnAddCategory.Name = "btnAddCategory";
             btnAddCategory.Size = new Size(70, 30);
@@ -462,6 +482,10 @@
             btnAddCategory.Text = "Добавить";
             btnAddCategory.UseVisualStyleBackColor = true;
 
+            btnEditCategory.AutoSize = true;
+            btnEditCategory.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnEditCategory.MinimumSize = new Size(70, 30);
+            btnEditCategory.Padding = new Padding(8, 0, 8, 0);
             btnEditCategory.Location = new Point(335, 3);
             btnEditCategory.Name = "btnEditCategory";
             btnEditCategory.Size = new Size(70, 30);
@@ -469,6 +493,10 @@
             btnEditCategory.Text = "Править";
             btnEditCategory.UseVisualStyleBackColor = true;
 
+            btnDeleteCategory.AutoSize = true;
+            btnDeleteCategory.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnDeleteCategory.MinimumSize = new Size(70, 30);
+            btnDeleteCategory.Padding = new Padding(8, 0, 8, 0);
             btnDeleteCategory.Location = new Point(411, 3);
             btnDeleteCategory.Name = "btnDeleteCategory";
             btnDeleteCategory.Size = new Size(70, 30);
@@ -558,6 +586,8 @@
             flowLayoutPanel3.Controls.Add(btnEditSupplier);
             flowLayoutPanel3.Controls.Add(btnDeleteSupplier);
             flowLayoutPanel3.Dock = DockStyle.Fill;
+            flowLayoutPanel3.AutoScroll = true;
+            flowLayoutPanel3.WrapContents = false;
             flowLayoutPanel3.Location = new Point(3, 374);
             flowLayoutPanel3.Name = "flowLayoutPanel3";
             flowLayoutPanel3.Size = new Size(1013, 39);
@@ -577,6 +607,10 @@
             textBoxSupSearch.Size = new Size(200, 23);
             textBoxSupSearch.TabIndex = 1;
 
+            btnAddSupplier.AutoSize = true;
+            btnAddSupplier.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnAddSupplier.MinimumSize = new Size(100, 30);
+            btnAddSupplier.Padding = new Padding(8, 0, 8, 0);
             btnAddSupplier.Location = new Point(259, 3);
             btnAddSupplier.Name = "btnAddSupplier";
             btnAddSupplier.Size = new Size(100, 30);
@@ -584,6 +618,10 @@
             btnAddSupplier.Text = "Добавить";
             btnAddSupplier.UseVisualStyleBackColor = true;
 
+            btnEditSupplier.AutoSize = true;
+            btnEditSupplier.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnEditSupplier.MinimumSize = new Size(70, 30);
+            btnEditSupplier.Padding = new Padding(8, 0, 8, 0);
             btnEditSupplier.Location = new Point(365, 3);
             btnEditSupplier.Name = "btnEditSupplier";
             btnEditSupplier.Size = new Size(70, 30);
@@ -591,6 +629,10 @@
             btnEditSupplier.Text = "Править";
             btnEditSupplier.UseVisualStyleBackColor = true;
 
+            btnDeleteSupplier.AutoSize = true;
+            btnDeleteSupplier.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnDeleteSupplier.MinimumSize = new Size(70, 30);
+            btnDeleteSupplier.Padding = new Padding(8, 0, 8, 0);
             btnDeleteSupplier.Location = new Point(441, 3);
             btnDeleteSupplier.Name = "btnDeleteSupplier";
             btnDeleteSupplier.Size = new Size(70, 30);
@@ -682,6 +724,8 @@
             flowLayoutPanel4.Controls.Add(btnEditCustomer);
             flowLayoutPanel4.Controls.Add(btnDeleteCustomer);
             flowLayoutPanel4.Dock = DockStyle.Fill;
+            flowLayoutPanel4.AutoScroll = true;
+            flowLayoutPanel4.WrapContents = false;
             flowLayoutPanel4.Location = new Point(3, 374);
             flowLayoutPanel4.Name = "flowLayoutPanel4";
             flowLayoutPanel4.Size = new Size(1013, 39);
@@ -717,6 +761,10 @@
             comboBoxCustType.Size = new Size(121, 23);
             comboBoxCustType.TabIndex = 3;
 
+            btnAddCustomer.AutoSize = true;
+            btnAddCustomer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnAddCustomer.MinimumSize = new Size(100, 30);
+            btnAddCustomer.Padding = new Padding(8, 0, 8, 0);
             btnAddCustomer.Location = new Point(423, 3);
             btnAddCustomer.Name = "btnAddCustomer";
             btnAddCustomer.Size = new Size(100, 30);
@@ -724,6 +772,10 @@
             btnAddCustomer.Text = "Добавить";
             btnAddCustomer.UseVisualStyleBackColor = true;
 
+            btnEditCustomer.AutoSize = true;
+            btnEditCustomer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnEditCustomer.MinimumSize = new Size(70, 30);
+            btnEditCustomer.Padding = new Padding(8, 0, 8, 0);
             btnEditCustomer.Location = new Point(529, 3);
             btnEditCustomer.Name = "btnEditCustomer";
             btnEditCustomer.Size = new Size(70, 30);
@@ -731,6 +783,10 @@
             btnEditCustomer.Text = "Править";
             btnEditCustomer.UseVisualStyleBackColor = true;
 
+            btnDeleteCustomer.AutoSize = true;
+            btnDeleteCustomer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnDeleteCustomer.MinimumSize = new Size(70, 30);
+            btnDeleteCustomer.Padding = new Padding(8, 0, 8, 0);
             btnDeleteCustomer.Location = new Point(605, 3);
             btnDeleteCustomer.Name = "btnDeleteCustomer";
             btnDeleteCustomer.Size = new Size(70, 30);
@@ -834,6 +890,8 @@
             flowLayoutPanel5.Controls.Add(btnEditPurchase);
             flowLayoutPanel5.Controls.Add(btnDeletePurchase);
             flowLayoutPanel5.Dock = DockStyle.Fill;
+            flowLayoutPanel5.AutoScroll = true;
+            flowLayoutPanel5.WrapContents = false;
             flowLayoutPanel5.Location = new Point(3, 374);
             flowLayoutPanel5.Name = "flowLayoutPanel5";
             flowLayoutPanel5.Size = new Size(1013, 39);
@@ -899,6 +957,10 @@
             dateTimePickerPurTo.Size = new Size(110, 23);
             dateTimePickerPurTo.TabIndex = 7;
 
+            btnAddPurchase.AutoSize = true;
+            btnAddPurchase.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnAddPurchase.MinimumSize = new Size(100, 30);
+            btnAddPurchase.Padding = new Padding(8, 0, 8, 0);
             btnAddPurchase.Location = new Point(673, 3);
             btnAddPurchase.Name = "btnAddPurchase";
             btnAddPurchase.Size = new Size(100, 30);
@@ -906,6 +968,10 @@
             btnAddPurchase.Text = "Новая закупка";
             btnAddPurchase.UseVisualStyleBackColor = true;
 
+            btnEditPurchase.AutoSize = true;
+            btnEditPurchase.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnEditPurchase.MinimumSize = new Size(70, 30);
+            btnEditPurchase.Padding = new Padding(8, 0, 8, 0);
             btnEditPurchase.Location = new Point(779, 3);
             btnEditPurchase.Name = "btnEditPurchase";
             btnEditPurchase.Size = new Size(70, 30);
@@ -913,6 +979,10 @@
             btnEditPurchase.Text = "Править";
             btnEditPurchase.UseVisualStyleBackColor = true;
 
+            btnDeletePurchase.AutoSize = true;
+            btnDeletePurchase.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnDeletePurchase.MinimumSize = new Size(70, 30);
+            btnDeletePurchase.Padding = new Padding(8, 0, 8, 0);
             btnDeletePurchase.Location = new Point(855, 3);
             btnDeletePurchase.Name = "btnDeletePurchase";
             btnDeletePurchase.Size = new Size(70, 30);
@@ -1006,6 +1076,8 @@
             flowLayoutPanel6.Controls.Add(btnDeleteSale);
             flowLayoutPanel6.Controls.Add(btnPrintCheck);
             flowLayoutPanel6.Dock = DockStyle.Fill;
+            flowLayoutPanel6.AutoScroll = true;
+            flowLayoutPanel6.WrapContents = false;
             flowLayoutPanel6.Location = new Point(3, 374);
             flowLayoutPanel6.Name = "flowLayoutPanel6";
             flowLayoutPanel6.Size = new Size(1013, 39);
@@ -1071,6 +1143,10 @@
             comboBoxSaleStatus.Size = new Size(100, 23);
             comboBoxSaleStatus.TabIndex = 7;
 
+            btnAddSale.AutoSize = true;
+            btnAddSale.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnAddSale.MinimumSize = new Size(100, 30);
+            btnAddSale.Padding = new Padding(8, 0, 8, 0);
             btnAddSale.Location = new Point(625, 3);
             btnAddSale.Name = "btnAddSale";
             btnAddSale.Size = new Size(100, 30);
@@ -1078,6 +1154,10 @@
             btnAddSale.Text = "Новая продажа";
             btnAddSale.UseVisualStyleBackColor = true;
 
+            btnEditSale.AutoSize = true;
+            btnEditSale.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnEditSale.MinimumSize = new Size(70, 30);
+            btnEditSale.Padding = new Padding(8, 0, 8, 0);
             btnEditSale.Location = new Point(731, 3);
             btnEditSale.Name = "btnEditSale";
             btnEditSale.Size = new Size(70, 30);
@@ -1085,6 +1165,10 @@
             btnEditSale.Text = "Править";
             btnEditSale.UseVisualStyleBackColor = true;
 
+            btnDeleteSale.AutoSize = true;
+            btnDeleteSale.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnDeleteSale.MinimumSize = new Size(70, 30);
+            btnDeleteSale.Padding = new Padding(8, 0, 8, 0);
             btnDeleteSale.Location = new Point(807, 3);
             btnDeleteSale.Name = "btnDeleteSale";
             btnDeleteSale.Size = new Size(70, 30);
@@ -1092,6 +1176,10 @@
             btnDeleteSale.Text = "Удалить";
             btnDeleteSale.UseVisualStyleBackColor = true;
 
+            btnPrintCheck.AutoSize = true;
+            btnPrintCheck.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnPrintCheck.MinimumSize = new Size(100, 30);
+            btnPrintCheck.Padding = new Padding(8, 0, 8, 0);
             btnPrintCheck.Location = new Point(883, 3);
             btnPrintCheck.Name = "btnPrintCheck";
             btnPrintCheck.Size = new Size(100, 30);
@@ -1150,6 +1238,8 @@
             flowLayoutPanel7.Controls.Add(btnReportProfit);
             flowLayoutPanel7.Controls.Add(btnExportExcel);
             flowLayoutPanel7.Dock = DockStyle.Fill;
+            flowLayoutPanel7.AutoScroll = true;
+            flowLayoutPanel7.WrapContents = false;
             flowLayoutPanel7.Location = new Point(3, 374);
             flowLayoutPanel7.Name = "flowLayoutPanel7";
             flowLayoutPanel7.Size = new Size(1013, 39);
@@ -1201,6 +1291,10 @@
             comboBoxRepCategory.Size = new Size(121, 23);
             comboBoxRepCategory.TabIndex = 5;
 
+            btnReportStock.AutoSize = true;
+            btnReportStock.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnReportStock.MinimumSize = new Size(70, 30);
+            btnReportStock.Padding = new Padding(8, 0, 8, 0);
             btnReportStock.Location = new Point(490, 3);
             btnReportStock.Name = "btnReportStock";
             btnReportStock.Size = new Size(70, 30);
@@ -1208,6 +1302,10 @@
             btnReportStock.Text = "Остатки";
             btnReportStock.UseVisualStyleBackColor = true;
 
+            btnReportSales.AutoSize = true;
+            btnReportSales.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnReportSales.MinimumSize = new Size(70, 30);
+            btnReportSales.Padding = new Padding(8, 0, 8, 0);
             btnReportSales.Location = new Point(566, 3);
             btnReportSales.Name = "btnReportSales";
             btnReportSales.Size = new Size(70, 30);
@@ -1215,6 +1313,10 @@
             btnReportSales.Text = "Продажи";
             btnReportSales.UseVisualStyleBackColor = true;
 
+            btnReportPurchases.AutoSize = true;
+            btnReportPurchases.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnReportPurchases.MinimumSize = new Size(70, 30);
+            btnReportPurchases.Padding = new Padding(8, 0, 8, 0);
             btnReportPurchases.Location = new Point(642, 3);
             btnReportPurchases.Name = "btnReportPurchases";
             btnReportPurchases.Size = new Size(70, 30);
@@ -1222,6 +1324,10 @@
             btnReportPurchases.Text = "Закупки";
             btnReportPurchases.UseVisualStyleBackColor = true;
 
+            btnReportProfit.AutoSize = true;
+            btnReportProfit.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnReportProfit.MinimumSize = new Size(70, 30);
+            btnReportProfit.Padding = new Padding(8, 0, 8, 0);
             btnReportProfit.Location = new Point(718, 3);
             btnReportProfit.Name = "btnReportProfit";
             btnReportProfit.Size = new Size(70, 30);
@@ -1229,6 +1335,10 @@
             btnReportProfit.Text = "Прибыль";
             btnReportProfit.UseVisualStyleBackColor = true;
 
+            btnExportExcel.AutoSize = true;
+            btnExportExcel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnExportExcel.MinimumSize = new Size(70, 30);
+            btnExportExcel.Padding = new Padding(8, 0, 8, 0);
             btnExportExcel.Location = new Point(794, 3);
             btnExportExcel.Name = "btnExportExcel";
             btnExportExcel.Size = new Size(70, 30);
@@ -1239,8 +1349,8 @@
             // =============================================
             // App (главная форма)
             // =============================================
-            AutoScaleDimensions = new SizeF(7F, 15F);
-            AutoScaleMode = AutoScaleMode.Font;
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(1033, 450);
             Controls.Add(tabControl1);
             Name = "App";
