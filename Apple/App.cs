@@ -54,6 +54,16 @@ namespace Apple
                 return;
             }
 
+            // Отключаем авто-генерацию столбцов для всех DataGridView, где колонки заданы в дизайнере
+            // Это убирает возможное дублирование колонок из дизайнера и из DataSource
+            dataGridView1.AutoGenerateColumns = false;
+            dataGridView2.AutoGenerateColumns = false;
+            dataGridView3.AutoGenerateColumns = false;
+            dataGridView4.AutoGenerateColumns = false;
+            dataGridView5.AutoGenerateColumns = false;
+            dataGridView6.AutoGenerateColumns = false;
+            dataGridView7.AutoGenerateColumns = true; // для отчётов колонки генерируются динамически
+
             tabControl1.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
             button1.Click += BtnAddProduct_Click;
             button2.Click += BtnEditProduct_Click;
@@ -1796,6 +1806,7 @@ namespace Apple
             MaximizeBox = false;
             MinimizeBox = false;
 
+            // *** ИСПРАВЛЕНИЕ: отключаем авто-генерацию столбцов, чтобы избежать дублирования ***
             _dgvItems = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -1805,13 +1816,15 @@ namespace Apple
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                AutoGenerateColumns = false
             };
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductId", HeaderText = "ID", Visible = false });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductName", HeaderText = "Товар", FillWeight = 50 });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Кол-во", FillWeight = 15 });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", FillWeight = 20 });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", FillWeight = 20 });
+            // Добавляем колонки вручную с привязкой к свойствам SaleItem
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductId", DataPropertyName = "ProductId", HeaderText = "ID", Visible = false });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductName", DataPropertyName = "ProductName", HeaderText = "Товар", FillWeight = 50 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", DataPropertyName = "Quantity", HeaderText = "Кол-во", FillWeight = 15 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", DataPropertyName = "Price", HeaderText = "Цена", FillWeight = 20 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", DataPropertyName = "Total", HeaderText = "Сумма", FillWeight = 20 });
             _dgvItems.DataSource = _items;
             _items.ListChanged += (s, e) => UpdateTotalLabel();
             Controls.Add(_dgvItems);
@@ -1990,6 +2003,7 @@ namespace Apple
             header.Controls.Add(new Label { Text = $"Покупатель: {customer} | Статус: {status}", Font = new Font("Arial", 10), Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleLeft });
             Controls.Add(header);
 
+            // *** ИСПРАВЛЕНИЕ: отключаем авто-генерацию, чтобы избежать дублирования ***
             DataGridView dgv = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -1998,12 +2012,18 @@ namespace Apple
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoGenerateColumns = false
             };
-            if (items.Columns.Contains("Товар")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Product", HeaderText = "Товар", DataPropertyName = "Товар", FillWeight = 50 });
-            if (items.Columns.Contains("Количество")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Количество", DataPropertyName = "Количество", FillWeight = 15 });
-            if (items.Columns.Contains("Цена")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", DataPropertyName = "Цена", FillWeight = 20 });
-            if (items.Columns.Contains("Сумма")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", DataPropertyName = "Сумма", FillWeight = 20 });
+            // Добавляем колонки с привязкой к реальным столбцам DataTable (русские названия)
+            if (items.Columns.Contains("Товар"))
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Product", DataPropertyName = "Товар", HeaderText = "Товар", FillWeight = 50 });
+            if (items.Columns.Contains("Количество"))
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", DataPropertyName = "Количество", HeaderText = "Количество", FillWeight = 15 });
+            if (items.Columns.Contains("Цена"))
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", DataPropertyName = "Цена", HeaderText = "Цена", FillWeight = 20 });
+            if (items.Columns.Contains("Сумма"))
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", DataPropertyName = "Сумма", HeaderText = "Сумма", FillWeight = 20 });
             dgv.DataSource = items;
             Controls.Add(dgv);
 
