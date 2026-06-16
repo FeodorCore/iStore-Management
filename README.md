@@ -34,8 +34,6 @@ MVP десктопного приложения для автоматизаци�
 ```bash
 dotnet add package ClosedXML --version 0.105.0
 dotnet add package Microsoft.Data.Sqlite --version 10.0.8
-dotnet add package Microsoft.Data.SqlClient --version 7.0.1
-dotnet add package System.Data.SqlClient --version 4.9.1
 ```
 
 ### 📋 Установка через Package Manager Console (Visual Studio)
@@ -43,8 +41,6 @@ dotnet add package System.Data.SqlClient --version 4.9.1
 ```powershell
 Install-Package ClosedXML -Version 0.105.0
 Install-Package Microsoft.Data.Sqlite -Version 10.0.8
-Install-Package Microsoft.Data.SqlClient -Version 7.0.1
-Install-Package System.Data.SqlClient -Version 4.9.1
 ```
 ---
 
@@ -143,14 +139,6 @@ SaleItems (Id, SaleId, ProductId, Quantity, Price, CostPrice)
 - Windows 10 / 11
 - .NET 10 SDK ([скачать](https://dotnet.microsoft.com/download/dotnet/10.0))
 - Visual Studio 2022 (17.12+) **или** VS Code / Rider
-
-### Публикация в EXE (self-contained)
-
-```bash
-dotnet publish Apple/Apple.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-```
-
-Готовый `.exe` появится в `Apple/bin/Release/net10.0-windows/win-x64/publish/`.
 
 ---
 
