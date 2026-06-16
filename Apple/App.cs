@@ -100,6 +100,8 @@ namespace Apple
             dateTimePickerSaleFrom.ValueChanged += SalesSearch_Changed;
             dateTimePickerSaleTo.ValueChanged += SalesSearch_Changed;
 
+            dataGridView6.CellDoubleClick += DataGridView_Sales_DoubleClick;
+
             btnReportStock.Click += BtnReportStock_Click;
             btnReportSales.Click += BtnReportSales_Click;
             btnReportPurchases.Click += BtnReportPurchases_Click;
@@ -690,6 +692,36 @@ namespace Apple
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка загрузки продаж: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DataGridView_Sales_DoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (dataGridView6.CurrentRow == null) return;
+            if (dataGridView6.CurrentRow.Cells["colSaleId"].Value == null) return;
+
+            int saleId = Convert.ToInt32(dataGridView6.CurrentRow.Cells["colSaleId"].Value);
+            string customer = dataGridView6.CurrentRow.Cells["colSaleCustomer"]?.Value?.ToString() ?? "Без покупателя";
+            string status = dataGridView6.CurrentRow.Cells["colSaleStatus"]?.Value?.ToString() ?? "";
+
+            try
+            {
+                var items = DatabaseHelper.GetSaleItems(saleId);
+                if (items == null || items.Rows.Count == 0)
+                {
+                    MessageBox.Show("В этой продаже нет позиций.", "Информация",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                using var form = new SaleItemsViewForm(saleId, customer, status, items);
+                form.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки позиций: {ex.Message}", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1662,6 +1694,57 @@ namespace Apple
         }
     }
 
+    public class SaleItem : INotifyPropertyChanged
+    {
+        private int _productId;
+        private string _productName = "";
+        private int _quantity;
+        private decimal _price;
+
+        public int ProductId
+        {
+            get => _productId;
+            set { _productId = value; OnPropertyChanged(nameof(ProductId)); }
+        }
+
+        public string ProductName
+        {
+            get => _productName;
+            set { _productName = value; OnPropertyChanged(nameof(ProductName)); }
+        }
+
+        public int Quantity
+        {
+            get => _quantity;
+            set
+            {
+                _quantity = value;
+                OnPropertyChanged(nameof(Quantity));
+                OnPropertyChanged(nameof(Total));
+            }
+        }
+
+        public decimal Price
+        {
+            get => _price;
+            set
+            {
+                _price = value;
+                OnPropertyChanged(nameof(Price));
+                OnPropertyChanged(nameof(Total));
+            }
+        }
+
+        public decimal Total => _quantity * _price;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     public class SaleForm : Form
     {
         private readonly ComboBox _cmbCustomer;
@@ -1670,15 +1753,16 @@ namespace Apple
         private readonly ComboBox _cmbProduct;
         private readonly NumericUpDown _nudQuantity;
         private readonly NumericUpDown _nudPrice;
+        private readonly Label _lblStock;
         private readonly Button _btnAddItem;
         private readonly Button _btnRemoveItem;
         private readonly DataGridView _dgvItems;
         private readonly Label _lblTotal;
         private readonly Button _btnOk;
         private readonly Button _btnCancel;
-        private readonly DataTable _products;
         private readonly BindingList<SaleItem> _items = new();
-        private readonly DataTable _customers;
+        private readonly Dictionary<int, int> _productStocks = new();
+        private readonly Dictionary<int, string> _productNames = new();
 
         public int? CustomerId
         {
@@ -1692,9 +1776,11 @@ namespace Apple
                 return null;
             }
         }
+
         public string CustomerName => _cmbCustomer.SelectedItem is DataRowView drv
             ? drv["Name"]?.ToString() ?? "Без покупателя"
             : "Без покупателя";
+
         public DateTime SaleDate => _dtpDate.Value;
         public string Status => _cmbStatus.SelectedItem?.ToString() ?? "Завершена";
         public List<SaleItem> Items => _items.ToList();
@@ -1702,287 +1788,180 @@ namespace Apple
         public SaleForm()
         {
             Text = "Новая продажа";
-            Width = 800;
-            Height = 620;
-            MinimumSize = new Size(650, 500);
+            Width = 950;
+            Height = 650;
+            MinimumSize = new Size(850, 550);
             FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
 
-            var mainLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 4,
-                Padding = new Padding(10)
-            };
-
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-            // === Row 0: Customer, Date, Status ===
-            var topRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 6,
-                RowCount = 1
-            };
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50));
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60));
-            topRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-
-            topRow.Controls.Add(new Label { Text = "Покупатель:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-            _customers = new DataTable();
-            _customers.Columns.Add("Id", typeof(int));
-            _customers.Columns.Add("Name", typeof(string));
-            _customers.Rows.Add(0, "Без покупателя");
-            try
-            {
-                var sourceCustomers = DatabaseHelper.GetCustomersForCombo();
-                foreach (DataRow row in sourceCustomers.Rows)
-                    _customers.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"].ToString());
-            }
-            catch { }
-            _cmbCustomer = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cmbCustomer.DataSource = _customers;
-            _cmbCustomer.DisplayMember = "Name";
-            _cmbCustomer.ValueMember = "Id";
-            if (_cmbCustomer.Items.Count > 0) _cmbCustomer.SelectedIndex = 0;
-            topRow.Controls.Add(_cmbCustomer, 1, 0);
-
-            topRow.Controls.Add(new Label { Text = "Дата:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 2, 0);
-            _dtpDate = new DateTimePicker { Dock = DockStyle.Fill, Format = DateTimePickerFormat.Short };
-            topRow.Controls.Add(_dtpDate, 3, 0);
-
-            topRow.Controls.Add(new Label { Text = "Статус:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 4, 0);
-            _cmbStatus = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cmbStatus.Items.AddRange(new object[] { "Завершена", "Отменена" });
-            if (_cmbStatus.Items.Count > 0) _cmbStatus.SelectedIndex = 0;
-            _cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
-            topRow.Controls.Add(_cmbStatus, 5, 0);
-
-            mainLayout.Controls.Add(topRow, 0, 0);
-
-            // === Row 1: Product, Qty, Price, Add Button ===
-            var addRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 8,
-                RowCount = 1
-            };
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 55));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10));
-            addRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
-
-            addRow.Controls.Add(new Label { Text = "Товар:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-
-            _products = new DataTable();
-            _products.Columns.Add("Id", typeof(int));
-            _products.Columns.Add("DisplayName", typeof(string));
-            _products.Columns.Add("SalePrice", typeof(decimal));
-            _products.Columns.Add("StockQuantity", typeof(int));
-            try
-            {
-                var sourceProducts = DatabaseHelper.GetProductsForCombo();
-                foreach (DataRow row in sourceProducts.Rows)
-                {
-                    _products.Rows.Add(
-                        Convert.ToInt32(row["Id"]),
-                        row["DisplayName"].ToString(),
-                        Convert.ToDecimal(row["SalePrice"]),
-                        Convert.ToInt32(row["StockQuantity"])
-                    );
-                }
-            }
-            catch { }
-            _cmbProduct = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cmbProduct.DataSource = _products;
-            _cmbProduct.DisplayMember = "DisplayName";
-            _cmbProduct.ValueMember = "Id";
-            _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
-            addRow.Controls.Add(_cmbProduct, 1, 0);
-
-            addRow.Controls.Add(new Label { Text = "Кол-во:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 2, 0);
-            _nudQuantity = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999, Minimum = 1, Value = 1 };
-            addRow.Controls.Add(_nudQuantity, 3, 0);
-
-            addRow.Controls.Add(new Label { Text = "Цена:", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(5, 0, 0, 0) }, 4, 0);
-            _nudPrice = new NumericUpDown { Dock = DockStyle.Fill, Maximum = 9999999, DecimalPlaces = 2 };
-            addRow.Controls.Add(_nudPrice, 5, 0);
-
-            // Empty spacer
-            addRow.Controls.Add(new Panel(), 6, 0);
-
-            _btnAddItem = new Button { Text = "➕ Добавить", Dock = DockStyle.Fill };
-            _btnAddItem.Click += BtnAddItem_Click;
-            addRow.Controls.Add(_btnAddItem, 7, 0);
-
-            mainLayout.Controls.Add(addRow, 0, 1);
-
-            // === Row 2: DataGridView (растягивается) ===
+            // === DataGridView - ДОБАВЛЯЕМ ПЕРВЫМ (Fill) ===
             _dgvItems = new DataGridView
             {
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
                 AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 BackgroundColor = SystemColors.Window,
-                RowHeadersVisible = false
+                RowHeadersVisible = false,
+                GridColor = Color.LightGray,
+                BorderStyle = BorderStyle.Fixed3D,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 248, 255) },
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(70, 130, 180),
+                    ForeColor = Color.White,
+                    Font = new Font("Arial", 10, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleCenter
+                },
+                EnableHeadersVisualStyles = false,
+                RowTemplate = { Height = 35 }
             };
-            _dgvItems.Columns.Add("ProductId", "ID");
-            _dgvItems.Columns["ProductId"]!.Visible = false;
-            _dgvItems.Columns.Add("ProductName", "Товар");
-            _dgvItems.Columns.Add("Quantity", "Количество");
-            _dgvItems.Columns.Add("Price", "Цена");
-            _dgvItems.Columns.Add("Total", "Сумма");
-            mainLayout.Controls.Add(_dgvItems, 0, 2);
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductId", HeaderText = "ID", Visible = false });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductName", HeaderText = "Товар", FillWeight = 50 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Кол-во", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" } });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2", Font = new Font("Arial", 10, FontStyle.Bold), ForeColor = Color.DarkGreen } });
+            _dgvItems.DataSource = _items;
+            _items.ListChanged += (s, e) => UpdateTotalLabel();
+            Controls.Add(_dgvItems);
 
-            // === Row 3: Bottom panel (Remove, Total, OK, Cancel) ===
-            var bottomRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 4,
-                RowCount = 1
-            };
-            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-            bottomRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-
-            _btnRemoveItem = new Button { Text = "❌ Удалить позицию", Dock = DockStyle.Fill };
+            // === Нижняя панель (Bottom) ===
+            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(10) };
+            _btnRemoveItem = new Button { Text = "🗑 Удалить", Width = 130, Height = 35, Location = new Point(10, 12), BackColor = Color.FromArgb(200, 80, 80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             _btnRemoveItem.Click += BtnRemoveItem_Click;
-            bottomRow.Controls.Add(_btnRemoveItem, 0, 0);
-
-            _lblTotal = new Label
-            {
-                Text = "ИТОГО: 0.00 руб.",
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                Font = new Font("Arial", 14, FontStyle.Bold),
-                ForeColor = Color.DarkGreen
-            };
-            bottomRow.Controls.Add(_lblTotal, 1, 0);
-
-            _btnOk = new Button { Text = "✅ Продать", Dock = DockStyle.Fill };
+            bottomPanel.Controls.Add(_btnRemoveItem);
+            _lblTotal = new Label { Text = "Добавьте товары", Font = new Font("Arial", 14, FontStyle.Bold), Location = new Point(160, 15), Width = 450, Height = 30, ForeColor = Color.Gray, TextAlign = ContentAlignment.MiddleLeft };
+            bottomPanel.Controls.Add(_lblTotal);
+            _btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, Margin = new Padding(3) };
+            bottomPanel.Controls.Add(_btnCancel);
+            _btnOk = new Button { Text = "✓ Продать", Width = 110, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(50, 150, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 10, FontStyle.Bold) };
             _btnOk.Click += BtnOk_Click;
-            bottomRow.Controls.Add(_btnOk, 2, 0);
+            bottomPanel.Controls.Add(_btnOk);
+            Controls.Add(bottomPanel);
 
-            _btnCancel = new Button { Text = "Отмена", Dock = DockStyle.Fill, DialogResult = DialogResult.Cancel };
-            bottomRow.Controls.Add(_btnCancel, 3, 0);
+            // === Панель добавления (Top) ===
+            var addPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(250, 250, 245), Padding = new Padding(10, 8, 10, 8) };
+            addPanel.Controls.Add(new Label { Text = "Товар:", Location = new Point(10, 15), AutoSize = true });
+            _cmbProduct = new ComboBox { Width = 280, Location = new Point(60, 12), DropDownStyle = ComboBoxStyle.DropDownList };
+            addPanel.Controls.Add(_cmbProduct);
+            addPanel.Controls.Add(new Label { Text = "Кол-во:", Location = new Point(360, 15), AutoSize = true });
+            _nudQuantity = new NumericUpDown { Width = 70, Location = new Point(420, 12), Maximum = 9999, Minimum = 1, Value = 1 };
+            addPanel.Controls.Add(_nudQuantity);
+            addPanel.Controls.Add(new Label { Text = "Цена:", Location = new Point(510, 15), AutoSize = true });
+            _nudPrice = new NumericUpDown { Width = 90, Location = new Point(560, 12), Maximum = 9999999, DecimalPlaces = 2 };
+            addPanel.Controls.Add(_nudPrice);
+            _btnAddItem = new Button { Text = "➕ Добавить", Width = 100, Height = 30, Location = new Point(670, 10), BackColor = Color.FromArgb(70, 130, 180), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            _btnAddItem.Click += BtnAddItem_Click;
+            addPanel.Controls.Add(_btnAddItem);
+            _lblStock = new Label { Text = "Остаток: —", Location = new Point(790, 15), AutoSize = true, ForeColor = Color.Gray, Font = new Font("Arial", 9, FontStyle.Bold) };
+            addPanel.Controls.Add(_lblStock);
+            Controls.Add(addPanel);
 
-            mainLayout.Controls.Add(bottomRow, 0, 3);
+            // === Верхняя панель (Top) ===
+            var topPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(10, 8, 10, 8) };
+            topPanel.Controls.Add(new Label { Text = "Покупатель:", Location = new Point(10, 15), AutoSize = true });
+            _cmbCustomer = new ComboBox { Width = 200, Location = new Point(90, 12), DropDownStyle = ComboBoxStyle.DropDownList };
+            topPanel.Controls.Add(_cmbCustomer);
+            topPanel.Controls.Add(new Label { Text = "Дата:", Location = new Point(310, 15), AutoSize = true });
+            _dtpDate = new DateTimePicker { Width = 130, Location = new Point(360, 12), Format = DateTimePickerFormat.Short };
+            topPanel.Controls.Add(_dtpDate);
+            topPanel.Controls.Add(new Label { Text = "Статус:", Location = new Point(510, 15), AutoSize = true });
+            _cmbStatus = new ComboBox { Width = 120, Location = new Point(570, 12), DropDownStyle = ComboBoxStyle.DropDownList };
+            _cmbStatus.Items.AddRange(new object[] { "Завершена", "Отменена" });
+            if (_cmbStatus.Items.Count > 0) _cmbStatus.SelectedIndex = 0;
+            _cmbStatus.SelectedIndexChanged += CmbStatus_SelectedIndexChanged;
+            topPanel.Controls.Add(_cmbStatus);
+            Controls.Add(topPanel);
 
-            Controls.Add(mainLayout);
             CancelButton = _btnCancel;
+            AcceptButton = _btnOk;
+            LoadComboBoxes();
+        }
+
+        private void LoadComboBoxes()
+        {
+            var dtCust = new DataTable();
+            dtCust.Columns.Add("Id", typeof(int));
+            dtCust.Columns.Add("Name", typeof(string));
+            dtCust.Rows.Add(0, "Без покупателя");
+            try { foreach (DataRow row in DatabaseHelper.GetCustomersForCombo().Rows) dtCust.Rows.Add(Convert.ToInt32(row["Id"]), row["Name"].ToString()); } catch { }
+            _cmbCustomer.DataSource = dtCust;
+            _cmbCustomer.DisplayMember = "Name";
+            _cmbCustomer.ValueMember = "Id";
+            if (_cmbCustomer.Items.Count > 0) _cmbCustomer.SelectedIndex = 0;
+
+            var dtProd = new DataTable();
+            dtProd.Columns.Add("Id", typeof(int));
+            dtProd.Columns.Add("DisplayName", typeof(string));
+            dtProd.Columns.Add("CleanName", typeof(string));
+            dtProd.Columns.Add("SalePrice", typeof(decimal));
+            dtProd.Columns.Add("StockQuantity", typeof(int));
+            try
+            {
+                foreach (DataRow row in DatabaseHelper.GetProductsForCombo().Rows)
+                {
+                    int id = Convert.ToInt32(row["Id"]);
+                    int stock = Convert.ToInt32(row["StockQuantity"]);
+                    string name = row["DisplayName"].ToString() ?? "";
+                    _productStocks[id] = stock;
+                    _productNames[id] = name;
+                    dtProd.Rows.Add(id, stock > 0 ? $"{name} [в наличии: {stock} шт.]" : $"{name} [НЕТ В НАЛИЧИИ]", name, Convert.ToDecimal(row["SalePrice"]), stock);
+                }
+            }
+            catch { }
+            _cmbProduct.DataSource = dtProd;
+            _cmbProduct.DisplayMember = "DisplayName";
+            _cmbProduct.ValueMember = "Id";
+            if (_cmbProduct.Items.Count > 0) _cmbProduct.SelectedIndex = 0;
+            _cmbProduct.SelectedIndexChanged += CmbProduct_SelectedIndexChanged;
         }
 
         private void CmbStatus_SelectedIndexChanged(object? sender, EventArgs e)
         {
             bool isCancelled = _cmbStatus.SelectedItem?.ToString() == "Отменена";
-            _cmbProduct.Enabled = !isCancelled;
-            _nudQuantity.Enabled = !isCancelled;
-            _nudPrice.Enabled = !isCancelled;
-            _btnAddItem.Enabled = !isCancelled;
-            _btnRemoveItem.Enabled = !isCancelled;
-            if (isCancelled)
-            {
-                _items.Clear();
-                RefreshGrid();
-            }
-        }
-
-        private void BtnOk_Click(object? sender, EventArgs e)
-        {
-            string status = _cmbStatus.SelectedItem?.ToString() ?? "Завершена";
-            if (status == "Завершена" && _items.Count == 0)
-            {
-                MessageBox.Show("Добавьте хотя бы один товар в продажу!", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            DialogResult = DialogResult.OK;
-            Close();
+            _cmbProduct.Enabled = _nudQuantity.Enabled = _nudPrice.Enabled = _btnAddItem.Enabled = _btnRemoveItem.Enabled = !isCancelled;
+            if (isCancelled) _items.Clear();
         }
 
         private void CmbProduct_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (_cmbProduct.SelectedItem is DataRowView drv)
             {
-                try { _nudPrice.Value = Convert.ToDecimal(drv["SalePrice"]); }
-                catch { }
+                try
+                {
+                    int pid = Convert.ToInt32(drv["Id"]);
+                    decimal price = Convert.ToDecimal(drv["SalePrice"]);
+                    int stock = Convert.ToInt32(drv["StockQuantity"]);
+                    if (price >= _nudPrice.Minimum && price <= _nudPrice.Maximum) _nudPrice.Value = price;
+                    if (stock > 0) { _lblStock.Text = $"✓ Остаток: {stock} шт."; _lblStock.ForeColor = Color.FromArgb(50, 120, 50); }
+                    else { _lblStock.Text = "✗ НЕТ В НАЛИЧИИ!"; _lblStock.ForeColor = Color.Red; }
+                    if (stock > 0) { var ex = _items.FirstOrDefault(i => i.ProductId == pid); int added = ex?.Quantity ?? 0; _nudQuantity.Maximum = Math.Max(1, stock - added + (int)_nudQuantity.Value); _nudQuantity.Value = Math.Min(_nudQuantity.Value, _nudQuantity.Maximum); }
+                    else { _nudQuantity.Maximum = 0; _nudQuantity.Value = 0; }
+                }
+                catch (Exception ex) { _lblStock.Text = $"Ошибка: {ex.Message}"; _lblStock.ForeColor = Color.Red; }
             }
+            else { _lblStock.Text = "Остаток: —"; _lblStock.ForeColor = Color.Gray; }
         }
 
         private void BtnAddItem_Click(object? sender, EventArgs e)
         {
-            if (_cmbProduct.SelectedItem is not DataRowView drv)
-            {
-                MessageBox.Show("Выберите товар из списка.", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            int productId;
-            try { productId = Convert.ToInt32(drv["Id"]); }
-            catch { return; }
-
-            if (productId <= 0) return;
-
-            int stock = Convert.ToInt32(drv["StockQuantity"]);
-            string productName = drv["DisplayName"].ToString() ?? "";
-            int qty = (int)_nudQuantity.Value;
-            decimal price = _nudPrice.Value;
-
-            if (qty <= 0) return;
-            if (stock <= 0)
-            {
-                MessageBox.Show("Этот товар отсутствует на складе!", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            var existing = _items.FirstOrDefault(i => i.ProductId == productId);
-            if (existing != null)
-            {
-                int newQty = existing.Quantity + qty;
-                if (newQty > stock)
-                {
-                    MessageBox.Show($"Недостаточно товара на складе! В наличии: {stock}", "Ошибка",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                existing.Quantity = newQty;
-            }
-            else
-            {
-                if (qty > stock)
-                {
-                    MessageBox.Show($"Недостаточно товара на складе! В наличии: {stock}", "Ошибка",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-                _items.Add(new SaleItem
-                {
-                    ProductId = productId,
-                    ProductName = productName,
-                    Quantity = qty,
-                    Price = price
-                });
-            }
-            RefreshGrid();
+            if (_cmbProduct.SelectedItem is not DataRowView drv) { MessageBox.Show("Выберите товар.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            int pid; try { pid = Convert.ToInt32(drv["Id"]); } catch { return; }
+            if (pid <= 0) return;
+            _productStocks.TryGetValue(pid, out int stock);
+            _productNames.TryGetValue(pid, out string pname);
+            if (string.IsNullOrEmpty(pname)) pname = drv["CleanName"]?.ToString() ?? drv["DisplayName"]?.ToString() ?? "Товар";
+            int qty = (int)_nudQuantity.Value; decimal price = _nudPrice.Value;
+            if (qty <= 0 || stock <= 0) { MessageBox.Show(stock <= 0 ? "Товар отсутствует на складе!" : "Некорректное количество.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            var existing = _items.FirstOrDefault(i => i.ProductId == pid);
+            if (existing != null) { if (existing.Quantity + qty > stock) { MessageBox.Show($"Недостаточно товара! В наличии: {stock}, уже добавлено: {existing.Quantity}.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; } existing.Quantity += qty; existing.Price = price; }
+            else { if (qty > stock) { MessageBox.Show($"Недостаточно товара! В наличии: {stock}.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; } _items.Add(new SaleItem { ProductId = pid, ProductName = pname, Quantity = qty, Price = price }); }
         }
 
         private void BtnRemoveItem_Click(object? sender, EventArgs e)
@@ -1991,27 +1970,68 @@ namespace Apple
             int idx = _dgvItems.CurrentRow.Index;
             if (idx >= 0 && idx < _items.Count)
             {
-                _items.RemoveAt(idx);
-                RefreshGrid();
+                var rem = _items[idx];
+                if (MessageBox.Show($"Удалить \"{rem.ProductName}\" ({rem.Quantity} шт.)?", "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    _items.RemoveAt(idx);
             }
         }
 
-        private void RefreshGrid()
+        private void BtnOk_Click(object? sender, EventArgs e)
         {
-            _dgvItems.Rows.Clear();
-            decimal total = 0;
-            foreach (var item in _items)
+            if (_cmbStatus.SelectedItem?.ToString() == "Завершена" && _items.Count == 0) { MessageBox.Show("Добавьте хотя бы один товар!", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            DialogResult = DialogResult.OK; Close();
+        }
+
+        private void UpdateTotalLabel()
+        {
+            decimal total = _items.Sum(i => i.Total);
+            if (_items.Count == 0) { _lblTotal.Text = "Добавьте товары в продажу"; _lblTotal.ForeColor = Color.Gray; }
+            else { _lblTotal.Text = $"ИТОГО: {total:N2} руб. ({_items.Count} поз.)"; _lblTotal.ForeColor = Color.FromArgb(30, 100, 30); }
+        }
+    }
+
+    public class SaleItemsViewForm : Form
+    {
+        public SaleItemsViewForm(int saleId, string customer, string status, DataTable items)
+        {
+            Text = $"Позиции продажи №{saleId}"; Width = 800; Height = 550; MinimumSize = new Size(700, 400);
+            StartPosition = FormStartPosition.CenterParent; FormBorderStyle = FormBorderStyle.Sizable; MaximizeBox = false; MinimizeBox = false;
+
+            Panel header = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(70, 130, 180), Padding = new Padding(15) };
+            header.Controls.Add(new Label { Text = $"Продажа №{saleId}", Font = new Font("Arial", 16, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+            header.Controls.Add(new Label { Text = $"Покупатель: {customer} | Статус: {status}", Font = new Font("Arial", 10), ForeColor = Color.FromArgb(220, 220, 255), Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleLeft });
+            Controls.Add(header);
+
+            DataGridView dgv = new DataGridView
             {
-                _dgvItems.Rows.Add(
-                    item.ProductId,
-                    item.ProductName,
-                    item.Quantity,
-                    item.Price.ToString("F2"),
-                    item.Total.ToString("F2")
-                );
-                total += item.Total;
-            }
-            _lblTotal.Text = $"ИТОГО: {total:F2} руб.";
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = SystemColors.Window,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                GridColor = Color.LightGray,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 248, 255) },
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(50, 100, 150), ForeColor = Color.White, Font = new Font("Arial", 10, FontStyle.Bold), Alignment = DataGridViewContentAlignment.MiddleCenter },
+                EnableHeadersVisualStyles = false,
+                RowTemplate = { Height = 32 }
+            };
+            if (items.Columns.Contains("Товар")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Product", HeaderText = "Товар", DataPropertyName = "Товар", FillWeight = 50 });
+            if (items.Columns.Contains("Количество")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Количество", DataPropertyName = "Количество", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Arial", 10, FontStyle.Bold) } });
+            if (items.Columns.Contains("Цена")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", DataPropertyName = "Цена", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" } });
+            if (items.Columns.Contains("Сумма")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", DataPropertyName = "Сумма", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2", Font = new Font("Arial", 10, FontStyle.Bold), ForeColor = Color.DarkGreen } });
+            dgv.DataSource = items; Controls.Add(dgv);
+
+            Panel bottom = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(15) };
+            decimal total = 0; foreach (DataRow row in items.Rows) if (items.Columns.Contains("Сумма") && row["Сумма"] != DBNull.Value) try { total += Convert.ToDecimal(row["Сумма"]); } catch { }
+            bottom.Controls.Add(new Label { Text = $"ОБЩИЙ ИТОГ: {total:N2} руб. | Позиций: {items.Rows.Count}", Font = new Font("Arial", 13, FontStyle.Bold), ForeColor = Color.FromArgb(30, 100, 30), Dock = DockStyle.Left, Width = 500, TextAlign = ContentAlignment.MiddleLeft });
+            var btnClose = new Button { Text = "Закрыть", Width = 120, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(100, 100, 100), ForeColor = Color.White, Font = new Font("Arial", 10) };
+            bottom.Controls.Add(btnClose); Controls.Add(bottom);
+            CancelButton = AcceptButton = btnClose;
         }
     }
     #endregion
