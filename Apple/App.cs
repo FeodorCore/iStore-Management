@@ -1796,7 +1796,6 @@ namespace Apple
             MaximizeBox = false;
             MinimizeBox = false;
 
-            // === DataGridView - ДОБАВЛЯЕМ ПЕРВЫМ (Fill) ===
             _dgvItems = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -1806,47 +1805,31 @@ namespace Apple
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor = SystemColors.Window,
-                RowHeadersVisible = false,
-                GridColor = Color.LightGray,
-                BorderStyle = BorderStyle.Fixed3D,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 248, 255) },
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(70, 130, 180),
-                    ForeColor = Color.White,
-                    Font = new Font("Arial", 10, FontStyle.Bold),
-                    Alignment = DataGridViewContentAlignment.MiddleCenter
-                },
-                EnableHeadersVisualStyles = false,
-                RowTemplate = { Height = 35 }
+                RowHeadersVisible = false
             };
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductId", HeaderText = "ID", Visible = false });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "ProductName", HeaderText = "Товар", FillWeight = 50 });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Кол-во", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" } });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2", Font = new Font("Arial", 10, FontStyle.Bold), ForeColor = Color.DarkGreen } });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Кол-во", FillWeight = 15 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", FillWeight = 20 });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", FillWeight = 20 });
             _dgvItems.DataSource = _items;
             _items.ListChanged += (s, e) => UpdateTotalLabel();
             Controls.Add(_dgvItems);
 
-            // === Нижняя панель (Bottom) ===
-            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(10) };
-            _btnRemoveItem = new Button { Text = "🗑 Удалить", Width = 130, Height = 35, Location = new Point(10, 12), BackColor = Color.FromArgb(200, 80, 80), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(10) };
+            _btnRemoveItem = new Button { Text = "Удалить", Width = 130, Height = 35, Location = new Point(10, 12) };
             _btnRemoveItem.Click += BtnRemoveItem_Click;
             bottomPanel.Controls.Add(_btnRemoveItem);
-            _lblTotal = new Label { Text = "Добавьте товары", Font = new Font("Arial", 14, FontStyle.Bold), Location = new Point(160, 15), Width = 450, Height = 30, ForeColor = Color.Gray, TextAlign = ContentAlignment.MiddleLeft };
+            _lblTotal = new Label { Text = "Добавьте товары", Location = new Point(160, 15), Width = 450, Height = 30, TextAlign = ContentAlignment.MiddleLeft };
             bottomPanel.Controls.Add(_lblTotal);
-            _btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, Margin = new Padding(3) };
+            _btnCancel = new Button { Text = "Отмена", Width = 90, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel, Margin = new Padding(3) };
             bottomPanel.Controls.Add(_btnCancel);
-            _btnOk = new Button { Text = "✓ Продать", Width = 110, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(50, 150, 50), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 10, FontStyle.Bold) };
+            _btnOk = new Button { Text = "Продать", Width = 110, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.OK };
             _btnOk.Click += BtnOk_Click;
             bottomPanel.Controls.Add(_btnOk);
             Controls.Add(bottomPanel);
 
-            // === Панель добавления (Top) ===
-            var addPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(250, 250, 245), Padding = new Padding(10, 8, 10, 8) };
+            var addPanel = new Panel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(10, 8, 10, 8) };
             addPanel.Controls.Add(new Label { Text = "Товар:", Location = new Point(10, 15), AutoSize = true });
             _cmbProduct = new ComboBox { Width = 280, Location = new Point(60, 12), DropDownStyle = ComboBoxStyle.DropDownList };
             addPanel.Controls.Add(_cmbProduct);
@@ -1856,15 +1839,14 @@ namespace Apple
             addPanel.Controls.Add(new Label { Text = "Цена:", Location = new Point(510, 15), AutoSize = true });
             _nudPrice = new NumericUpDown { Width = 90, Location = new Point(560, 12), Maximum = 9999999, DecimalPlaces = 2 };
             addPanel.Controls.Add(_nudPrice);
-            _btnAddItem = new Button { Text = "➕ Добавить", Width = 100, Height = 30, Location = new Point(670, 10), BackColor = Color.FromArgb(70, 130, 180), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            _btnAddItem = new Button { Text = "Добавить", Width = 100, Height = 30, Location = new Point(670, 10) };
             _btnAddItem.Click += BtnAddItem_Click;
             addPanel.Controls.Add(_btnAddItem);
-            _lblStock = new Label { Text = "Остаток: —", Location = new Point(790, 15), AutoSize = true, ForeColor = Color.Gray, Font = new Font("Arial", 9, FontStyle.Bold) };
+            _lblStock = new Label { Text = "Остаток: —", Location = new Point(790, 15), AutoSize = true };
             addPanel.Controls.Add(_lblStock);
             Controls.Add(addPanel);
 
-            // === Верхняя панель (Top) ===
-            var topPanel = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(10, 8, 10, 8) };
+            var topPanel = new Panel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(10, 8, 10, 8) };
             topPanel.Controls.Add(new Label { Text = "Покупатель:", Location = new Point(10, 15), AutoSize = true });
             _cmbCustomer = new ComboBox { Width = 200, Location = new Point(90, 12), DropDownStyle = ComboBoxStyle.DropDownList };
             topPanel.Controls.Add(_cmbCustomer);
@@ -1939,14 +1921,14 @@ namespace Apple
                     decimal price = Convert.ToDecimal(drv["SalePrice"]);
                     int stock = Convert.ToInt32(drv["StockQuantity"]);
                     if (price >= _nudPrice.Minimum && price <= _nudPrice.Maximum) _nudPrice.Value = price;
-                    if (stock > 0) { _lblStock.Text = $"✓ Остаток: {stock} шт."; _lblStock.ForeColor = Color.FromArgb(50, 120, 50); }
-                    else { _lblStock.Text = "✗ НЕТ В НАЛИЧИИ!"; _lblStock.ForeColor = Color.Red; }
+                    if (stock > 0) { _lblStock.Text = $"Остаток: {stock} шт."; }
+                    else { _lblStock.Text = "НЕТ В НАЛИЧИИ!"; }
                     if (stock > 0) { var ex = _items.FirstOrDefault(i => i.ProductId == pid); int added = ex?.Quantity ?? 0; _nudQuantity.Maximum = Math.Max(1, stock - added + (int)_nudQuantity.Value); _nudQuantity.Value = Math.Min(_nudQuantity.Value, _nudQuantity.Maximum); }
                     else { _nudQuantity.Maximum = 0; _nudQuantity.Value = 0; }
                 }
-                catch (Exception ex) { _lblStock.Text = $"Ошибка: {ex.Message}"; _lblStock.ForeColor = Color.Red; }
+                catch (Exception ex) { _lblStock.Text = $"Ошибка: {ex.Message}"; }
             }
-            else { _lblStock.Text = "Остаток: —"; _lblStock.ForeColor = Color.Gray; }
+            else { _lblStock.Text = "Остаток: —"; }
         }
 
         private void BtnAddItem_Click(object? sender, EventArgs e)
@@ -1985,8 +1967,8 @@ namespace Apple
         private void UpdateTotalLabel()
         {
             decimal total = _items.Sum(i => i.Total);
-            if (_items.Count == 0) { _lblTotal.Text = "Добавьте товары в продажу"; _lblTotal.ForeColor = Color.Gray; }
-            else { _lblTotal.Text = $"ИТОГО: {total:N2} руб. ({_items.Count} поз.)"; _lblTotal.ForeColor = Color.FromArgb(30, 100, 30); }
+            if (_items.Count == 0) { _lblTotal.Text = "Добавьте товары в продажу"; }
+            else { _lblTotal.Text = $"ИТОГО: {total:N2} руб. ({_items.Count} поз.)"; }
         }
     }
 
@@ -1994,12 +1976,18 @@ namespace Apple
     {
         public SaleItemsViewForm(int saleId, string customer, string status, DataTable items)
         {
-            Text = $"Позиции продажи №{saleId}"; Width = 800; Height = 550; MinimumSize = new Size(700, 400);
-            StartPosition = FormStartPosition.CenterParent; FormBorderStyle = FormBorderStyle.Sizable; MaximizeBox = false; MinimizeBox = false;
+            Text = $"Позиции продажи №{saleId}";
+            Width = 800;
+            Height = 550;
+            MinimumSize = new Size(700, 400);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox = false;
+            MinimizeBox = false;
 
-            Panel header = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(70, 130, 180), Padding = new Padding(15) };
-            header.Controls.Add(new Label { Text = $"Продажа №{saleId}", Font = new Font("Arial", 16, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleLeft });
-            header.Controls.Add(new Label { Text = $"Покупатель: {customer} | Статус: {status}", Font = new Font("Arial", 10), ForeColor = Color.FromArgb(220, 220, 255), Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleLeft });
+            Panel header = new Panel { Dock = DockStyle.Top, Height = 80, Padding = new Padding(15) };
+            header.Controls.Add(new Label { Text = $"Продажа №{saleId}", Font = new Font("Arial", 16, FontStyle.Bold), Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+            header.Controls.Add(new Label { Text = $"Покупатель: {customer} | Статус: {status}", Font = new Font("Arial", 10), Dock = DockStyle.Top, Height = 25, TextAlign = ContentAlignment.MiddleLeft });
             Controls.Add(header);
 
             DataGridView dgv = new DataGridView
@@ -2009,28 +1997,25 @@ namespace Apple
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = SystemColors.Window,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                GridColor = Color.LightGray,
-                BorderStyle = BorderStyle.None,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(248, 248, 255) },
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(50, 100, 150), ForeColor = Color.White, Font = new Font("Arial", 10, FontStyle.Bold), Alignment = DataGridViewContentAlignment.MiddleCenter },
-                EnableHeadersVisualStyles = false,
-                RowTemplate = { Height = 32 }
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
             if (items.Columns.Contains("Товар")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Product", HeaderText = "Товар", DataPropertyName = "Товар", FillWeight = 50 });
-            if (items.Columns.Contains("Количество")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Количество", DataPropertyName = "Количество", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new Font("Arial", 10, FontStyle.Bold) } });
-            if (items.Columns.Contains("Цена")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", DataPropertyName = "Цена", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2" } });
-            if (items.Columns.Contains("Сумма")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", DataPropertyName = "Сумма", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleRight, Format = "N2", Font = new Font("Arial", 10, FontStyle.Bold), ForeColor = Color.DarkGreen } });
-            dgv.DataSource = items; Controls.Add(dgv);
+            if (items.Columns.Contains("Количество")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Количество", DataPropertyName = "Количество", FillWeight = 15 });
+            if (items.Columns.Contains("Цена")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Price", HeaderText = "Цена", DataPropertyName = "Цена", FillWeight = 20 });
+            if (items.Columns.Contains("Сумма")) dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Сумма", DataPropertyName = "Сумма", FillWeight = 20 });
+            dgv.DataSource = items;
+            Controls.Add(dgv);
 
-            Panel bottom = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(245, 245, 250), Padding = new Padding(15) };
-            decimal total = 0; foreach (DataRow row in items.Rows) if (items.Columns.Contains("Сумма") && row["Сумма"] != DBNull.Value) try { total += Convert.ToDecimal(row["Сумма"]); } catch { }
-            bottom.Controls.Add(new Label { Text = $"ОБЩИЙ ИТОГ: {total:N2} руб. | Позиций: {items.Rows.Count}", Font = new Font("Arial", 13, FontStyle.Bold), ForeColor = Color.FromArgb(30, 100, 30), Dock = DockStyle.Left, Width = 500, TextAlign = ContentAlignment.MiddleLeft });
-            var btnClose = new Button { Text = "Закрыть", Width = 120, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(100, 100, 100), ForeColor = Color.White, Font = new Font("Arial", 10) };
-            bottom.Controls.Add(btnClose); Controls.Add(bottom);
+            Panel bottom = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(15) };
+            decimal total = 0;
+            foreach (DataRow row in items.Rows)
+                if (items.Columns.Contains("Сумма") && row["Сумма"] != DBNull.Value)
+                    try { total += Convert.ToDecimal(row["Сумма"]); } catch { }
+            bottom.Controls.Add(new Label { Text = $"ОБЩИЙ ИТОГ: {total:N2} руб. | Позиций: {items.Rows.Count}", Dock = DockStyle.Left, Width = 500, TextAlign = ContentAlignment.MiddleLeft });
+            var btnClose = new Button { Text = "Закрыть", Width = 120, Height = 35, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel };
+            bottom.Controls.Add(btnClose);
+            Controls.Add(bottom);
             CancelButton = AcceptButton = btnClose;
         }
     }
